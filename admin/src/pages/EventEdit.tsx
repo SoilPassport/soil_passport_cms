@@ -7,6 +7,7 @@ import ImageField from '../components/ImageField';
 import PreviewModal from '../components/PreviewModal';
 import { eventPreview } from '../lib/preview';
 import RichText from '../components/RichText';
+import Registrations from '../components/Registrations';
 import Workflow from '../components/Workflow';
 import { clean, fromLocalInput, slugify, toLocalInput } from '../lib/util';
 
@@ -27,7 +28,7 @@ export default function EventEdit() {
     const { data: s } = await supabase.from('event_speakers').select('id,name,title,organisation,bio,photo_url').eq('event_id', id).order('sort_order');
     setStatus(data.status); setSlugTouched(true);
     setSp(((s ?? []) as Partial<Speaker>[]).map(x => ({ id: x.id, name: x.name ?? '', title: x.title ?? '', organisation: x.organisation ?? '', bio: x.bio ?? '', photo_url: x.photo_url ?? '' })));
-    setF({ title: data.title, slug: data.slug, html: (data.description as { html?: string })?.html ?? '', event_type: data.event_type, category: data.category ?? '', banner_url: data.banner_url ?? '', starts_at: toLocalInput(data.starts_at), ends_at: toLocalInput(data.ends_at), timezone: data.timezone, mode: data.mode, location: data.location ?? '', registration_mode: data.registration_mode === 'native' ? 'external' : data.registration_mode, registration_url: data.registration_url ?? '', registration_provider: data.registration_provider ?? '', max_attendees: data.max_attendees ? String(data.max_attendees) : '', registration_closes_at: toLocalInput(data.registration_closes_at), featured: data.featured, recording_url: data.recording_url ?? '', is_investor_event: data.is_investor_event });
+    setF({ title: data.title, slug: data.slug, html: (data.description as { html?: string })?.html ?? '', event_type: data.event_type, category: data.category ?? '', banner_url: data.banner_url ?? '', starts_at: toLocalInput(data.starts_at), ends_at: toLocalInput(data.ends_at), timezone: data.timezone, mode: data.mode, location: data.location ?? '', registration_mode: data.registration_mode, registration_url: data.registration_url ?? '', registration_provider: data.registration_provider ?? '', max_attendees: data.max_attendees ? String(data.max_attendees) : '', registration_closes_at: toLocalInput(data.registration_closes_at), featured: data.featured, recording_url: data.recording_url ?? '', is_investor_event: data.is_investor_event });
     setDirty(false); setLoading(false);
   }, [id, isNew]);
   useEffect(() => { void load(); }, [load]);
@@ -81,12 +82,15 @@ export default function EventEdit() {
           {sp.map((s, i) => <div key={i} className="space-y-2 rounded-lg bg-slate-50 p-3"><div className="grid gap-2 sm:grid-cols-2"><input aria-label={`Speaker ${i + 1} name`} placeholder="Name" className="input" value={s.name} disabled={dis} onChange={e => updSp(i, { name: e.target.value })} /><input aria-label={`Speaker ${i + 1} job title`} placeholder="Job title" className="input" value={s.title} disabled={dis} onChange={e => updSp(i, { title: e.target.value })} /><input aria-label={`Speaker ${i + 1} organisation`} placeholder="Organisation" className="input" value={s.organisation} disabled={dis} onChange={e => updSp(i, { organisation: e.target.value })} /><ImageField id={`sp-${i}`} label="Photo" value={s.photo_url} disabled={dis} onChange={v => updSp(i, { photo_url: v })} /></div>
             <textarea aria-label={`Speaker ${i + 1} bio`} placeholder="Short bio" rows={2} className="input" value={s.bio} disabled={dis} onChange={e => updSp(i, { bio: e.target.value })} />{!dis && <button type="button" className="text-xs underline" onClick={() => { setSp(sp.filter((_, j) => j !== i)); setDirty(true); }}>Remove speaker</button>}</div>)}
           {!dis && <button type="button" className="btn btn-ghost text-xs" onClick={() => { setSp([...sp, { name: '', title: '', organisation: '', bio: '', photo_url: '' }]); setDirty(true); }}>+ Add speaker</button>}</section>
+        {!isNew && f.registration_mode === 'native' && <Registrations eventId={id!} title={f.title} />}
       </div>
       <div className="space-y-4">
         {!isNew && <Workflow entity="event" id={id!} status={status} publishAt={null} dirty={dirty} onChanged={() => void load()} />}
         <div className="card space-y-4 p-4">
           <ImageField id="e-ban" label="Banner image" value={f.banner_url} disabled={dis} onChange={v => set('banner_url', v)} />
-          <Field label="Registration" htmlFor="e-rm" hint="Built-in registration forms arrive in Phase 4 with spam protection. Until then use an external link."><select id="e-rm" className="input" value={f.registration_mode} disabled={dis} onChange={e => set('registration_mode', e.target.value)}><option value="external">External link</option><option value="none">No registration</option></select></Field>
+          <Field label="Registration" htmlFor="e-rm" hint="Website registration uses a protected form and emails a confirmation."><select id="e-rm" className="input" value={f.registration_mode} disabled={dis} onChange={e => set('registration_mode', e.target.value)}><option value="native">Register on this website</option><option value="external">External link</option><option value="none">No registration</option></select></Field>
+          {f.registration_mode === 'native' && <><Field label="Maximum attendees (optional)" htmlFor="e-max"><input id="e-max" className="input" type="number" min="1" value={f.max_attendees} disabled={dis} onChange={e => set('max_attendees', e.target.value)} /></Field>
+            <Field label="Registration closes (optional)" htmlFor="e-rc"><input id="e-rc" className="input" type="datetime-local" value={f.registration_closes_at} disabled={dis} onChange={e => set('registration_closes_at', e.target.value)} /></Field></>}
           {f.registration_mode === 'external' && <><Field label="Registration link" htmlFor="e-ru"><input id="e-ru" className="input" type="url" value={f.registration_url} disabled={dis} onChange={e => set('registration_url', e.target.value)} /></Field>
             <Field label="Provider" htmlFor="e-rp"><select id="e-rp" className="input" value={f.registration_provider} disabled={dis} onChange={e => set('registration_provider', e.target.value)}>{PROVIDERS.map(p => <option key={p} value={p}>{p || 'Not specified'}</option>)}</select></Field></>}
           <Field label="Recording link (after the event)" htmlFor="e-rec"><input id="e-rec" className="input" type="url" value={f.recording_url} disabled={dis} onChange={e => set('recording_url', e.target.value)} /></Field>

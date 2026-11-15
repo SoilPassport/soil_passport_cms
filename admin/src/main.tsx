@@ -28,9 +28,18 @@ import Gallery from './pages/Gallery';
 import GalleryEdit from './pages/GalleryEdit';
 import Videos from './pages/Videos';
 import Documents from './pages/Documents';
+import Enquiries from './pages/Enquiries';
+import Newsletter from './pages/Newsletter';
+import Roadmap from './pages/Roadmap';
+import Crm from './pages/Crm';
+import Email from './pages/Email';
+import Seo from './pages/Seo';
+import Reports from './pages/Reports';
+import System from './pages/System';
+import Storage from './pages/Storage';
 import DocumentEdit from './pages/DocumentEdit';
 
-const BUILT: Record<string, JSX.Element> = { dashboard: <Dashboard />, users: <Users />, roles: <Roles />, audit: <Audit />, pages: <Pages />, articles: <Articles />, events: <Events />, settings: <Settings />, media: <Media />, gallery: <Gallery />, video: <Videos />, documents: <Documents /> };
+const BUILT: Record<string, JSX.Element> = { seo: <Seo />, reports: <Reports />, system: <System />, storage: <Storage />, dashboard: <Dashboard />, users: <Users />, roles: <Roles />, audit: <Audit />, pages: <Pages />, articles: <Articles />, events: <Events />, settings: <Settings />, media: <Media />, gallery: <Gallery />, video: <Videos />, documents: <Documents />, roadmap: <Roadmap />, investment: <Enquiries kind="investment" />, partnerships: <Enquiries kind="partnership" />, contact: <Enquiries kind="contact" />, newsletter: <Newsletter />, crm: <Crm />, email: <Email /> };
 
 function Guarded() {
   const a = useAuth();

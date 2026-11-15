@@ -7,7 +7,7 @@ await db.exec(`create schema auth; create table auth.users(id uuid primary key, 
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 create or replace function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
 create role anon; create role authenticated;`);
-for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration','0005_media_library']) {
+for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration','0005_media_library','0006_forms_email_crm']) {
   try { await db.exec(fs.readFileSync(''+new URL('../migrations/',import.meta.url).pathname+''+f+'.sql','utf8')); console.log('OK',f);} catch(e){console.log('FAIL',f,e.message); process.exit(1)}
 }
 await db.exec(`grant usage on schema public to anon, authenticated; grant select,insert,update,delete on all tables in schema public to anon, authenticated; grant execute on all functions in schema public to anon, authenticated;`);
@@ -71,3 +71,17 @@ await db.exec('reset role');
 console.log('internal doc cannot be published (expect ERR):', await db.query(`insert into documents(title,category,access_level,status) values ('Inv','investor_presentation','investor_only','published')`).then(()=>'NO ERROR (bad)').catch(e=>'ERR '+e.message));
 console.log('contributor publish video (expect ERR):', await as(u(2),'aal1',`insert into videos(title,source,external_url,status) values ('x','youtube','https://youtu.be/z','published')`));
 console.log('contributor draft video (expect row ok):', await as(u(2),'aal1',`insert into videos(title,source,external_url,status) values ('x','youtube','https://youtu.be/z','draft') returning title`));
+
+// ---- 0006: forms, email log, roadmap guard ----
+await db.exec("reset role; select set_config('request.jwt.claim.sub','',false), set_config('request.jwt.claims','',false); insert into form_rate_limits(ip_hash,kind) values ('h','contact'); insert into enquiries(kind,name,email,consent) values ('contact','T','t@x.test',true);");
+const hidden = async (sql) => { try { await db.exec('set role anon'); const r = await db.query(sql); await db.exec('reset role'); return r.rows[0].c; } catch (e) { await db.exec('reset role'); return 'ERR (also fine)'; } };
+console.log('anon sees enquiries (expect 0 or ERR):', await hidden('select count(*)::int c from enquiries'));
+console.log('anon sees rate limits (expect 0 or ERR):', await hidden('select count(*)::int c from form_rate_limits'));
+console.log('staff sees rate limits (expect 0 or ERR):', JSON.stringify(await as(u(1),'aal2','select count(*)::int c from form_rate_limits')));
+console.log('templates seeded (expect 6):', (await db.query('select count(*)::int c from email_templates')).rows[0].c);
+console.log('contributor approve roadmap (expect ERR):', await as(u(2),'aal1',"insert into roadmap_items(title,approved,is_public) values ('x',true,true)"));
+await db.exec("reset role; select set_config('request.jwt.claim.sub','',false), set_config('request.jwt.claims','',false); insert into roadmap_items(title,approved,is_public) values ('Shown',true,true),('Hidden',false,true),('Private',true,false); set role anon");
+console.log('anon roadmap (expect ["Shown"]):', JSON.stringify((await db.query('select title from roadmap_items')).rows.map(r=>r.title)));
+await db.exec('reset role');
+console.log('event_availability callable by anon:', await db.exec('set role anon').then(()=>db.query("select * from event_availability('none')")).then(r=>'ok rows='+r.rows.length).catch(e=>'ERR '+e.message));
+await db.exec('reset role');

@@ -111,3 +111,59 @@ Actions → **Build admin app** → Run workflow, then upload the new `dist` fil
 - SVG uploads are not allowed (they can contain scripts).
 - Download counts are not tracked yet.
 - Usage checks for delete look for the file address in articles, events, pages, speakers, videos, albums and document versions; other places (such as a link pasted into a rich-text article body) are not checked.
+
+
+---
+
+# Phases 4, 5 and 6: forms, enquiries, email, HubSpot, reports
+
+**None of this has been tested against live Turnstile, Resend, HubSpot or deployed functions.** Work through the checklist at the end and report anything that fails.
+
+### 1. Database
+Supabase → SQL Editor → run, in order, any not yet run: `0004_public_integration.sql`, `0005_media_library.sql`, `0006_forms_email_crm.sql`.
+
+### 2. Turnstile (spam protection)
+Cloudflare dashboard → Turnstile → Add widget → hostname `soilpassport.com` (and `www.soilpassport.com`). Copy the **site key** (public) and **secret key**.
+- Site key → in the website folder edit `assets/cms-config.js`: `turnstileSiteKey`. Also paste your Supabase **publishable** key into `key`.
+- Secret key → Supabase secret `TURNSTILE_SECRET_KEY`.
+
+### 3. Email (Resend)
+Create an account at resend.com, add and verify the sending domain (DNS records), create an API key.
+
+### 4. HubSpot
+HubSpot → Settings → Integrations → Private Apps → Create. Scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`. Copy the access token.
+
+### 5. Supabase secrets (Project Settings → Edge Functions → Secrets)
+| Name | Value |
+|---|---|
+| `TURNSTILE_SECRET_KEY` | Turnstile secret key |
+| `IP_HASH_SALT` | a long random string (used to hash visitor IPs and sign newsletter links) |
+| `RESEND_API_KEY` | Resend API key |
+| `EMAIL_FROM` | e.g. `Soil Passport <hello@soilpassport.com>` (domain must be verified in Resend) |
+| `HUBSPOT_ACCESS_TOKEN` | HubSpot private app token |
+| `PUBLIC_SITE_ORIGINS` | optional, comma separated, e.g. `https://soilpassport.com,https://www.soilpassport.com` |
+
+Plus the R2 secrets from Phase 3.
+
+### 6. Deploy and publish
+1. Actions → **Deploy Supabase functions** → Run (now deploys `integrations` and `submit-form`).
+2. Actions → **Build admin app** → Run, upload the new files into the `cms.soilpassport.com` folder.
+3. Upload the new website zip to `soilpassport.com`.
+4. In the admin: **Email Configuration** → set the staff alert recipients; send a test email. **CRM Integration** and **System Configuration** show which secrets are set.
+
+### Verification checklist
+- [ ] System Configuration shows R2, Turnstile, HubSpot, Email as "Secrets present".
+- [ ] contact.html: submit a test enquiry → it appears under Contact Enquiries; the sender gets an acknowledgement; staff recipients get an alert.
+- [ ] Submitting with the consent box unticked is blocked; submitting 7 times in an hour is refused.
+- [ ] partner-with-us.html and investor-enquiry.html create Partnership / Investment enquiries.
+- [ ] Newsletter signup on news.html sends a confirmation email; clicking the link marks the subscriber confirmed.
+- [ ] A native-registration event shows a form on events.html; registering sends a confirmation and respects capacity.
+- [ ] CRM Integration shows the job as synced and the contact and note exist in HubSpot. Retry works on a failed job.
+- [ ] Roadmap items publish to roadmap.html only after approval by someone with roadmap.approve.
+- [ ] SEO Management generates sitemap.xml/robots.txt; Reports shows counts and exports CSV.
+
+### Limits of these phases
+- Not built: event reminder emails, content-approval notification emails, restricted/private downloads, download counts, sending newsletters (subscribers are collected and exported only), HubSpot deals and custom properties, visitor analytics.
+- Sitemap and robots.txt are generated for download; they are not updated automatically.
+- Articles, pages and events are rendered in the browser, so search engines that do not run JavaScript will not index them.
+- Secret status only shows whether values are set, not whether they are valid.
