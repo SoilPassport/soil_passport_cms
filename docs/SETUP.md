@@ -51,3 +51,63 @@ Upload the contents of `admin/dist/` (including `.htaccess`) to the document roo
 
 ## 8. Backups
 Enable Supabase daily backups (Pro plan) or schedule `pg_dump` to storage you control; test a restore into a scratch project before production.
+
+---
+
+## Phase 3: Media library on Cloudflare R2
+
+The media library (images, videos, PDFs and Office files) stores files in Cloudflare R2. The browser never sees the R2 keys: the `media-r2` Edge Function checks the user's permission, creates a short-lived upload address, and records the file after checking it really arrived. **This has not been tested against a live R2 bucket yet.** Run the checklist at the end after setting up.
+
+### 1. Run the database migration
+Supabase → SQL Editor → run `supabase/migrations/0005_media_library.sql` (after 0004).
+
+### 2. Create the bucket (Cloudflare)
+1. Cloudflare dashboard → **R2 Object Storage** → **Create bucket**, name it `soilpassport-media`.
+2. Bucket → **Settings → Custom Domains → Add**: `media.soilpassport.com` (this is the public address of your files; the domain must be on Cloudflare DNS). For a quick test you can instead enable the `r2.dev` public URL, but use the custom domain for production.
+3. Bucket → **Settings → CORS policy → Add**, paste:
+```json
+[{
+  "AllowedOrigins": ["https://cms.soilpassport.com"],
+  "AllowedMethods": ["PUT", "GET", "HEAD"],
+  "AllowedHeaders": ["Content-Type"],
+  "ExposeHeaders": ["ETag"],
+  "MaxAgeSeconds": 3600
+}]
+```
+
+### 3. Create an API token
+R2 → **Manage R2 API Tokens → Create API token** → permission **Object Read & Write**, limited to the `soilpassport-media` bucket. Copy the **Access Key ID**, **Secret Access Key**, and your **Account ID** (shown on the R2 overview page). The secret is shown only once.
+
+### 4. Give the keys to Supabase (never to GitHub or the website)
+Supabase → **Edge Functions → Secrets** (or Project Settings → Edge Functions) → add:
+
+| Name | Value |
+|---|---|
+| `R2_ACCOUNT_ID` | your Cloudflare account ID |
+| `R2_ACCESS_KEY_ID` | the access key ID |
+| `R2_SECRET_ACCESS_KEY` | the secret access key |
+| `R2_BUCKET` | `soilpassport-media` |
+| `R2_PUBLIC_BASE_URL` | `https://media.soilpassport.com` |
+| `ALLOWED_ORIGIN` | `https://cms.soilpassport.com` |
+
+### 5. Deploy the functions
+GitHub repo → Settings → Secrets → add `SUPABASE_ACCESS_TOKEN` (Supabase → Account → Access Tokens) and `SUPABASE_PROJECT_REF` (e.g. `luototmqgoqrhdhtyicy`). Then Actions → **Deploy Supabase functions** → Run workflow. This deploys `invite-user` and `media-r2`.
+
+### 6. Rebuild the admin app
+Actions → **Build admin app** → Run workflow, then upload the new `dist` files to the `cms.soilpassport.com` folder as before.
+
+### Verification checklist
+- [ ] Media Library → Upload a small JPG → it appears in the grid and opens at `https://media.soilpassport.com/uploads/…`.
+- [ ] Uploading the same file again says it already exists (duplicate check).
+- [ ] A `.exe` or `.svg` file is refused; a file over its size limit is refused (10 MB images, 150 MB video, 30 MB documents).
+- [ ] An Editor can upload but cannot delete; a Content Manager can delete.
+- [ ] Deleting a file that an article, page, event, album, video or document uses is refused with a message.
+- [ ] Article → Featured image → Choose → picks from the library; Preview shows it.
+- [ ] Publish an album, a video and a document and check gallery.html, videos.html and downloads.html on soilpassport.com.
+- [ ] Browser developer tools → Network: no request sends the R2 secret; uploads go to `…r2.cloudflarestorage.com` with a signed address.
+
+### Limits of this phase
+- Only **public** files are supported. Restricted, internal and investor-only documents are blocked from publishing until a private bucket and signed downloads are added.
+- SVG uploads are not allowed (they can contain scripts).
+- Download counts are not tracked yet.
+- Usage checks for delete look for the file address in articles, events, pages, speakers, videos, albums and document versions; other places (such as a link pasted into a rich-text article body) are not checked.

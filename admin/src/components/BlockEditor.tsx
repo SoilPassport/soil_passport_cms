@@ -1,8 +1,10 @@
 import { BLOCKS, type Block, type BlockType, type Field } from '../lib/blocks';
 import { useState } from 'react';
+import ImageField from './ImageField';
 
 type Obj = Record<string, unknown>;
 function Inp({ f, v, on, id, disabled }: { f: Field; v: string; on: (s: string) => void; id: string; disabled: boolean }) {
+  if (f.k === 'image_url') return <ImageField id={id} label={f.l} value={v} disabled={disabled} onChange={x => on(x)} />;
   return <div><label className="label" htmlFor={id}>{f.l}</label>{f.area ? <textarea id={id} className="input" rows={3} value={v} disabled={disabled} onChange={e => on(e.target.value)} /> : <input id={id} className="input" value={v} disabled={disabled} onChange={e => on(e.target.value)} />}{f.hint && <p className="mt-1 text-xs text-slate-500">{f.hint}</p>}</div>;
 }
 

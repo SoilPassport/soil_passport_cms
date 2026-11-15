@@ -7,7 +7,7 @@ await db.exec(`create schema auth; create table auth.users(id uuid primary key, 
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 create or replace function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
 create role anon; create role authenticated;`);
-for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration']) {
+for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration','0005_media_library']) {
   try { await db.exec(fs.readFileSync(''+new URL('../migrations/',import.meta.url).pathname+''+f+'.sql','utf8')); console.log('OK',f);} catch(e){console.log('FAIL',f,e.message); process.exit(1)}
 }
 await db.exec(`grant usage on schema public to anon, authenticated; grant select,insert,update,delete on all tables in schema public to anon, authenticated; grant execute on all functions in schema public to anon, authenticated;`);
@@ -55,3 +55,19 @@ await db.exec(`insert into system_settings(key,category,value,is_public) values 
 await db.exec('set role anon');
 console.log('ANON sees settings (expect announcement):', JSON.stringify((await db.query('select key from system_settings')).rows.map(r=>r.key)));
 await db.exec('reset role');
+
+// ---- 0005: media library ----
+await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false), set_config('request.jwt.claims','',false);
+insert into media_assets(id,kind,filename,mime_type,size_bytes,storage_bucket,storage_key,visibility,public_url) values
+ ('00000000-0000-0000-0000-0000000000a1','pdf','a.pdf','application/pdf',10,'b','uploads/2026/11/a','public','https://m.test/a.pdf'),
+ ('00000000-0000-0000-0000-0000000000a2','pdf','b.pdf','application/pdf',10,'b','uploads/2026/11/b','public','https://m.test/b.pdf');
+insert into videos(title,source,external_url,status) values ('PubVid','youtube','https://youtu.be/x','published'),('DraftVid','youtube','https://youtu.be/y','draft');
+insert into documents(id,title,category,access_level,status) values ('00000000-0000-0000-0000-0000000000d1','PubDoc','corporate','public','published'),('00000000-0000-0000-0000-0000000000d2','DraftDoc','corporate','public','draft');
+insert into document_versions(document_id,version_label,asset_id) values ('00000000-0000-0000-0000-0000000000d1','v1','00000000-0000-0000-0000-0000000000a1'),('00000000-0000-0000-0000-0000000000d2','v1','00000000-0000-0000-0000-0000000000a2');`);
+await db.exec('set role anon');
+console.log('ANON videos (expect PubVid):', JSON.stringify((await db.query('select title from videos')).rows.map(r=>r.title)));
+console.log('ANON document versions (expect 1):', (await db.query('select count(*)::int c from document_versions')).rows[0].c);
+await db.exec('reset role');
+console.log('internal doc cannot be published (expect ERR):', await db.query(`insert into documents(title,category,access_level,status) values ('Inv','investor_presentation','investor_only','published')`).then(()=>'NO ERROR (bad)').catch(e=>'ERR '+e.message));
+console.log('contributor publish video (expect ERR):', await as(u(2),'aal1',`insert into videos(title,source,external_url,status) values ('x','youtube','https://youtu.be/z','published')`));
+console.log('contributor draft video (expect row ok):', await as(u(2),'aal1',`insert into videos(title,source,external_url,status) values ('x','youtube','https://youtu.be/z','draft') returning title`));

@@ -2,9 +2,11 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import MediaPicker from './MediaPicker';
 
 export default function RichText({ value, onChange, id }: { value: string; onChange: (html: string) => void; id?: string }) {
+  const [pick, setPick] = useState(false);
   const editor = useEditor({
     extensions: [StarterKit, Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }), Image],
     content: value,
@@ -16,7 +18,7 @@ export default function RichText({ value, onChange, id }: { value: string; onCha
   const B = ({ on, active, label, title }: { on: () => void; active?: boolean; label: string; title: string }) =>
     <button type="button" title={title} aria-label={title} onClick={on} className={`rounded px-2 py-1 text-sm ${active ? 'bg-slate-900 text-white' : 'hover:bg-slate-200'}`}>{label}</button>;
   const addLink = () => { const url = window.prompt('Link URL (https://…)'); if (url === null) return; if (url === '') editor.chain().focus().unsetLink().run(); else editor.chain().focus().extendMarkRange('link').setLink({ href: url, target: '_blank' }).run(); };
-  const addImage = () => { const url = window.prompt('Image URL (https://…)'); if (url) editor.chain().focus().setImage({ src: url }).run(); };
+  const addByUrl = () => { const url = window.prompt('Image URL (https://…)'); if (url) editor.chain().focus().setImage({ src: url }).run(); };
   return (
     <div>
       <div role="toolbar" aria-label="Formatting" className="flex flex-wrap gap-1 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 p-1.5">
@@ -28,10 +30,12 @@ export default function RichText({ value, onChange, id }: { value: string; onCha
         <B title="Numbered list" label="1. List" active={editor.isActive('orderedList')} on={() => editor.chain().focus().toggleOrderedList().run()} />
         <B title="Quote" label="“ ”" active={editor.isActive('blockquote')} on={() => editor.chain().focus().toggleBlockquote().run()} />
         <B title="Link" label="Link" active={editor.isActive('link')} on={addLink} />
-        <B title="Image by URL" label="Image" on={addImage} />
+        <B title="Insert image from media library" label="Image" on={() => setPick(true)} />
+        <B title="Insert image by URL" label="Image URL" on={addByUrl} />
         <B title="Undo" label="↶" on={() => editor.chain().focus().undo().run()} />
         <B title="Redo" label="↷" on={() => editor.chain().focus().redo().run()} />
       </div>
       <EditorContent editor={editor} />
+      {pick && <MediaPicker kinds={['image']} onClose={() => setPick(false)} onPick={([a]) => { if (a.public_url) editor.chain().focus().setImage({ src: a.public_url, alt: a.alt_text ?? '' }).run(); setPick(false); }} />}
     </div>);
 }

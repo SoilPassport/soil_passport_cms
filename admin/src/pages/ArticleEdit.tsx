@@ -3,6 +3,9 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { PageHeader, Spinner, ErrorBox, Field, Toast } from '../components/ui';
+import ImageField from '../components/ImageField';
+import PreviewModal from '../components/PreviewModal';
+import { articlePreview } from '../lib/preview';
 import RichText from '../components/RichText';
 import Workflow from '../components/Workflow';
 import { clean, fmt, fromLocalInput, slugify, toLocalInput } from '../lib/util';
@@ -13,7 +16,7 @@ interface Rev { id: string; revision_no: number; created_at: string; snapshot: P
 
 export default function ArticleEdit() {
   const { id } = useParams(); const isNew = !id || id === 'new'; const nav = useNavigate(); const { can, profile } = useAuth();
-  const [f, setF] = useState<Form>(EMPTY); const [status, setStatus] = useState('draft'); const [cats, setCats] = useState<{ id: string; name: string }[]>([]); const [revs, setRevs] = useState<Rev[]>([]);
+  const [f, setF] = useState<Form>(EMPTY); const [prev, setPrev] = useState(''); const [status, setStatus] = useState('draft'); const [cats, setCats] = useState<{ id: string; name: string }[]>([]); const [revs, setRevs] = useState<Rev[]>([]);
   const [loading, setLoading] = useState(!isNew); const [err, setErr] = useState(''); const [toast, setToast] = useState(''); const [dirty, setDirty] = useState(false); const [slugTouched, setSlugTouched] = useState(false); const [busy, setBusy] = useState(false);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500); };
@@ -75,7 +78,7 @@ export default function ArticleEdit() {
   if (loading) return <Spinner />;
   const dis = readOnly || busy;
   return <>
-    <PageHeader title={isNew ? 'New article' : 'Edit article'} sub={isNew ? 'Saved as a draft first. Publish from the Status panel after saving.' : undefined} actions={<Link to="/articles" className="btn btn-ghost">Back to articles</Link>} />
+    <PageHeader title={isNew ? 'New article' : 'Edit article'} sub={isNew ? 'Saved as a draft first. Publish from the Status panel after saving.' : undefined} actions={<div className="flex gap-2"><button type="button" className="btn btn-ghost" onClick={() => setPrev(articlePreview({ title: f.title, html: f.html, image: f.featured_image_url, author: f.author_display_name }))}>Preview</button><Link to="/articles" className="btn btn-ghost">Back to articles</Link></div>} />
     {err && <div className="mb-4"><ErrorBox msg={err} /></div>}
     {readOnly && !isNew && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">This article is {status}. {can('articles.edit') ? 'Ask a Content Manager to unpublish it or request changes before editing.' : 'You can view it but not edit it.'}</p>}
     <form onSubmit={save} className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -91,7 +94,7 @@ export default function ArticleEdit() {
             <Field label="SEO title" htmlFor="a-st" hint={`${f.seo_title.length}/60 characters. Leave blank to use the article title.`}><input id="a-st" className="input" value={f.seo_title} disabled={dis} onChange={e => set('seo_title', e.target.value)} /></Field>
             <Field label="Meta description" htmlFor="a-sd" hint={`${f.seo_description.length}/160 characters`}><textarea id="a-sd" className="input" rows={2} value={f.seo_description} disabled={dis} onChange={e => set('seo_description', e.target.value)} /></Field>
             <Field label="Canonical URL" htmlFor="a-cu" hint="Only set if this content was first published elsewhere."><input id="a-cu" className="input" type="url" value={f.canonical_url} disabled={dis} onChange={e => set('canonical_url', e.target.value)} /></Field>
-            <Field label="Social sharing image URL" htmlFor="a-og"><input id="a-og" className="input" type="url" value={f.og_image_url} disabled={dis} onChange={e => set('og_image_url', e.target.value)} /></Field>
+            <ImageField id="a-og" label="Social sharing image" value={f.og_image_url} disabled={dis} onChange={v => set('og_image_url', v)} />
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.noindex} disabled={dis} onChange={e => set('noindex', e.target.checked)} />Ask search engines not to index this article</label>
           </div></details>
       </div>
@@ -101,7 +104,7 @@ export default function ArticleEdit() {
           <Field label="Category" htmlFor="a-cat"><select id="a-cat" className="input" value={f.category_id} disabled={dis} onChange={e => set('category_id', e.target.value)}><option value="">None</option>{cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
           <Field label="Tags" htmlFor="a-tags" hint="Separate with commas."><input id="a-tags" className="input" value={f.tags} disabled={dis} onChange={e => set('tags', e.target.value)} /></Field>
           <Field label="Author name shown" htmlFor="a-au"><input id="a-au" className="input" value={f.author_display_name} disabled={dis} onChange={e => set('author_display_name', e.target.value)} /></Field>
-          <Field label="Featured image URL" htmlFor="a-img" hint="Paste an image address. The media library comes in Phase 3."><input id="a-img" className="input" type="url" value={f.featured_image_url} disabled={dis} onChange={e => set('featured_image_url', e.target.value)} /></Field>
+          <ImageField id="a-img" label="Featured image" value={f.featured_image_url} disabled={dis} onChange={v => set('featured_image_url', v)} />
           {can('articles.publish') && <Field label="Schedule for" htmlFor="a-pub" hint="Set a time, save, then press Schedule."><input id="a-pub" className="input" type="datetime-local" value={f.publish_at} disabled={dis} onChange={e => set('publish_at', e.target.value)} /></Field>}
         </div>
         {!readOnly && <div className="flex gap-2"><button className="btn btn-primary flex-1" disabled={busy}>{busy ? 'Saving…' : isNew ? 'Create draft' : 'Save changes'}</button>{!isNew && can('articles.delete') && <button type="button" className="btn btn-danger" onClick={() => void del()}>Delete</button>}</div>}
@@ -109,6 +112,6 @@ export default function ArticleEdit() {
         {revs.length > 0 && <section className="card p-4"><h2 className="mb-2 text-sm font-semibold">Revision history</h2><ul className="space-y-1 text-xs">{revs.map(r => <li key={r.id} className="flex items-center justify-between gap-2"><span>#{r.revision_no} · {fmt(r.created_at)}</span>{!readOnly && <button type="button" className="underline" onClick={() => restore(r)}>Load</button>}</li>)}</ul></section>}
       </div>
     </form>
-    <Toast msg={toast} />
+    {prev && <PreviewModal html={prev} onClose={() => setPrev('')} />}<Toast msg={toast} />
   </>;
 }

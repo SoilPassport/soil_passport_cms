@@ -23,8 +23,14 @@ import PageEdit from './pages/PageEdit';
 import Events from './pages/Events';
 import EventEdit from './pages/EventEdit';
 import Settings from './pages/Settings';
+import Media from './pages/Media';
+import Gallery from './pages/Gallery';
+import GalleryEdit from './pages/GalleryEdit';
+import Videos from './pages/Videos';
+import Documents from './pages/Documents';
+import DocumentEdit from './pages/DocumentEdit';
 
-const BUILT: Record<string, JSX.Element> = { dashboard: <Dashboard />, users: <Users />, roles: <Roles />, audit: <Audit />, pages: <Pages />, articles: <Articles />, events: <Events />, settings: <Settings /> };
+const BUILT: Record<string, JSX.Element> = { dashboard: <Dashboard />, users: <Users />, roles: <Roles />, audit: <Audit />, pages: <Pages />, articles: <Articles />, events: <Events />, settings: <Settings />, media: <Media />, gallery: <Gallery />, video: <Videos />, documents: <Documents /> };
 
 function Guarded() {
   const a = useAuth();
@@ -39,6 +45,10 @@ function Guarded() {
         {a.can('pages.edit') && <><Route path="/pages/new" element={<PageEdit />} /><Route path="/pages/:id" element={<PageEdit />} /></>}
         {a.can('articles.edit') && <><Route path="/articles/new" element={<ArticleEdit />} /><Route path="/articles/categories" element={<Categories />} /><Route path="/articles/:id" element={<ArticleEdit />} /></>}
         {a.can('events.edit') && <><Route path="/events/new" element={<EventEdit />} /><Route path="/events/:id" element={<EventEdit />} /></>}
+        {a.can('gallery.edit') && <><Route path="/gallery/new" element={<GalleryEdit />} /></>}
+        {a.can('gallery.view') && <Route path="/gallery/:id" element={<GalleryEdit />} />}
+        {a.can('documents.edit') && <Route path="/documents/new" element={<DocumentEdit />} />}
+        {a.can('documents.view') && <Route path="/documents/:id" element={<DocumentEdit />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>);

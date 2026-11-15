@@ -3,6 +3,9 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { PageHeader, Spinner, ErrorBox, Field, Toast } from '../components/ui';
+import ImageField from '../components/ImageField';
+import PreviewModal from '../components/PreviewModal';
+import { pagePreview } from '../lib/preview';
 import Workflow from '../components/Workflow';
 import BlockEditor from '../components/BlockEditor';
 import type { Block } from '../lib/blocks';
@@ -13,7 +16,7 @@ const EMPTY: Form = { title: '', slug: '', visibility: 'public', sort_order: 0, 
 
 export default function PageEdit() {
   const { id } = useParams(); const isNew = !id || id === 'new'; const nav = useNavigate(); const { can, profile } = useAuth();
-  const [f, setF] = useState<Form>(EMPTY); const [status, setStatus] = useState('draft'); const [loading, setLoading] = useState(!isNew); const [err, setErr] = useState(''); const [toast, setToast] = useState(''); const [dirty, setDirty] = useState(false); const [busy, setBusy] = useState(false); const [slugTouched, setSlugTouched] = useState(false);
+  const [f, setF] = useState<Form>(EMPTY); const [prev, setPrev] = useState(''); const [status, setStatus] = useState('draft'); const [loading, setLoading] = useState(!isNew); const [err, setErr] = useState(''); const [toast, setToast] = useState(''); const [dirty, setDirty] = useState(false); const [busy, setBusy] = useState(false); const [slugTouched, setSlugTouched] = useState(false);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
   const load = useCallback(async () => {
     if (isNew) return;
@@ -46,7 +49,7 @@ export default function PageEdit() {
   if (loading) return <Spinner />;
   const dis = readOnly || busy;
   return <>
-    <PageHeader title={isNew ? 'New page' : 'Edit page'} actions={<Link to="/pages" className="btn btn-ghost">Back to pages</Link>} />
+    <PageHeader title={isNew ? 'New page' : 'Edit page'} actions={<div className="flex gap-2"><button type="button" className="btn btn-ghost" onClick={() => setPrev(pagePreview(f.title, f.blocks))}>Preview</button><Link to="/pages" className="btn btn-ghost">Back to pages</Link></div>} />
     {err && <div className="mb-4"><ErrorBox msg={err} /></div>}
     {readOnly && !isNew && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">This page is {status}. Ask a Content Manager to unpublish it or request changes before editing.</p>}
     <form onSubmit={save} className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -60,7 +63,7 @@ export default function PageEdit() {
           <Field label="SEO title" htmlFor="p-st" hint={`${f.seo_title.length}/60 characters. Blank uses the page title.`}><input id="p-st" className="input" value={f.seo_title} disabled={dis} onChange={e => set('seo_title', e.target.value)} /></Field>
           <Field label="Meta description" htmlFor="p-sd" hint={`${f.seo_description.length}/160 characters`}><textarea id="p-sd" className="input" rows={2} value={f.seo_description} disabled={dis} onChange={e => set('seo_description', e.target.value)} /></Field>
           <Field label="Canonical URL" htmlFor="p-cu"><input id="p-cu" className="input" type="url" value={f.canonical_url} disabled={dis} onChange={e => set('canonical_url', e.target.value)} /></Field>
-          <Field label="Social sharing image URL" htmlFor="p-og"><input id="p-og" className="input" type="url" value={f.og_image_url} disabled={dis} onChange={e => set('og_image_url', e.target.value)} /></Field>
+          <ImageField id="p-og" label="Social sharing image" value={f.og_image_url} disabled={dis} onChange={v => set('og_image_url', v)} />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.noindex} disabled={dis} onChange={e => set('noindex', e.target.checked)} />Ask search engines not to index this page</label></div></details>
       </div>
       <div className="space-y-4">
@@ -73,5 +76,5 @@ export default function PageEdit() {
         {!readOnly && <div className="flex gap-2"><button className="btn btn-primary flex-1" disabled={busy}>{busy ? 'Saving…' : isNew ? 'Create draft' : 'Save changes'}</button>{!isNew && can('pages.delete') && <button type="button" className="btn btn-danger" onClick={() => void del()}>Delete</button>}</div>}
         {dirty && !readOnly && <p className="text-xs text-amber-700">You have unsaved changes.</p>}
       </div>
-    </form><Toast msg={toast} /></>;
+    </form>{prev && <PreviewModal html={prev} onClose={() => setPrev('')} />}<Toast msg={toast} /></>;
 }

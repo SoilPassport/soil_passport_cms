@@ -15,10 +15,10 @@ export const NAV: NavGroup[] = [
     { key: 'roadmap', label: 'Roadmap Management', path: '/roadmap', perm: 'roadmap.view', phase: 4, blurb: 'Milestones with status and public/private visibility. Only approved items are published.' },
     { key: 'seo', label: 'SEO Management', path: '/seo', perm: 'seo.view', phase: 2, blurb: 'Sitemap and robots.txt generation. Per-page and per-article SEO fields are already in each editor.' } ] },
   { label: 'Media', items: [
-    { key: 'media', label: 'Media Library', path: '/media', perm: 'media.view', phase: 3, blurb: 'Central library on Cloudflare R2 with duplicate detection and usage tracking. Until then, paste image URLs in the editors.' },
-    { key: 'gallery', label: 'Gallery', path: '/gallery', perm: 'gallery.view', phase: 3, blurb: 'Albums built from the media library.' },
-    { key: 'video', label: 'Video Library', path: '/video', perm: 'media.view', phase: 3, blurb: 'MP4/WebM uploads and embeds.' },
-    { key: 'documents', label: 'Document Management', path: '/documents', perm: 'documents.view', phase: 3, blurb: 'Versioned documents with public, restricted, internal and investor-only access.' } ] },
+    { key: 'media', label: 'Media Library', path: '/media', perm: 'media.view', phase: 3, built: true, blurb: 'Central library on Cloudflare R2 with duplicate detection and usage tracking. Until then, paste image URLs in the editors.' },
+    { key: 'gallery', label: 'Gallery', path: '/gallery', perm: 'gallery.view', phase: 3, built: true, children: [{ label: 'All Albums', path: '/gallery' }, { label: 'New Album', path: '/gallery/new', perm: 'gallery.edit' }], blurb: 'Albums built from the media library.' },
+    { key: 'video', label: 'Video Library', path: '/video', perm: 'media.view', phase: 3, built: true, blurb: 'MP4/WebM uploads and embeds.' },
+    { key: 'documents', label: 'Document Management', path: '/documents', perm: 'documents.view', phase: 3, built: true, children: [{ label: 'All Documents', path: '/documents' }, { label: 'New Document', path: '/documents/new', perm: 'documents.edit' }], blurb: 'Versioned documents with public, restricted, internal and investor-only access.' } ] },
   { label: 'Enquiries', items: [
     { key: 'investment', label: 'Investment Enquiries', path: '/investment', perm: 'investment.view', phase: 4, blurb: 'Investor enquiries, lead categories, follow-up and notes.' },
     { key: 'partnerships', label: 'Partnership Enquiries', path: '/partnerships', perm: 'partnerships.view', phase: 4, blurb: 'Partnership applications by category.' },

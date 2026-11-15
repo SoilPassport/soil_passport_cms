@@ -3,6 +3,9 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { PageHeader, Spinner, ErrorBox, Field, Toast } from '../components/ui';
+import ImageField from '../components/ImageField';
+import PreviewModal from '../components/PreviewModal';
+import { eventPreview } from '../lib/preview';
 import RichText from '../components/RichText';
 import Workflow from '../components/Workflow';
 import { clean, fromLocalInput, slugify, toLocalInput } from '../lib/util';
@@ -15,7 +18,7 @@ const EMPTY: Form = { title: '', slug: '', html: '', event_type: 'public_webinar
 
 export default function EventEdit() {
   const { id } = useParams(); const isNew = !id || id === 'new'; const nav = useNavigate(); const { can, profile } = useAuth();
-  const [f, setF] = useState<Form>(EMPTY); const [sp, setSp] = useState<Speaker[]>([]); const [status, setStatus] = useState('draft'); const [loading, setLoading] = useState(!isNew); const [err, setErr] = useState(''); const [toast, setToast] = useState(''); const [dirty, setDirty] = useState(false); const [busy, setBusy] = useState(false); const [slugTouched, setSlugTouched] = useState(false);
+  const [f, setF] = useState<Form>(EMPTY); const [prev, setPrev] = useState(''); const [sp, setSp] = useState<Speaker[]>([]); const [status, setStatus] = useState('draft'); const [loading, setLoading] = useState(!isNew); const [err, setErr] = useState(''); const [toast, setToast] = useState(''); const [dirty, setDirty] = useState(false); const [busy, setBusy] = useState(false); const [slugTouched, setSlugTouched] = useState(false);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
   const load = useCallback(async () => {
     if (isNew) return;
@@ -54,7 +57,7 @@ export default function EventEdit() {
   if (loading) return <Spinner />;
   const dis = readOnly || busy;
   return <>
-    <PageHeader title={isNew ? 'New event' : 'Edit event'} actions={<Link to="/events" className="btn btn-ghost">Back to events</Link>} />
+    <PageHeader title={isNew ? 'New event' : 'Edit event'} actions={<div className="flex gap-2"><button type="button" className="btn btn-ghost" onClick={() => setPrev(eventPreview({ title: f.title, html: f.html, banner: f.banner_url, starts: fromLocalInput(f.starts_at) ?? '', location: f.location, regUrl: f.registration_mode === 'external' ? f.registration_url : '', speakers: sp }))}>Preview</button><Link to="/events" className="btn btn-ghost">Back to events</Link></div>} />
     {err && <div className="mb-4"><ErrorBox msg={err} /></div>}
     {readOnly && !isNew && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">This event is {status}. Ask someone with publish rights to unpublish it before editing.</p>}
     <form onSubmit={save} className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -75,14 +78,14 @@ export default function EventEdit() {
         </div>
         <section className="card space-y-3 p-4"><h2 className="text-sm font-semibold">Speakers</h2>
           {sp.length === 0 && <p className="text-sm text-slate-500">No speakers added.</p>}
-          {sp.map((s, i) => <div key={i} className="space-y-2 rounded-lg bg-slate-50 p-3"><div className="grid gap-2 sm:grid-cols-2"><input aria-label={`Speaker ${i + 1} name`} placeholder="Name" className="input" value={s.name} disabled={dis} onChange={e => updSp(i, { name: e.target.value })} /><input aria-label={`Speaker ${i + 1} job title`} placeholder="Job title" className="input" value={s.title} disabled={dis} onChange={e => updSp(i, { title: e.target.value })} /><input aria-label={`Speaker ${i + 1} organisation`} placeholder="Organisation" className="input" value={s.organisation} disabled={dis} onChange={e => updSp(i, { organisation: e.target.value })} /><input aria-label={`Speaker ${i + 1} photo URL`} placeholder="Photo URL" className="input" value={s.photo_url} disabled={dis} onChange={e => updSp(i, { photo_url: e.target.value })} /></div>
+          {sp.map((s, i) => <div key={i} className="space-y-2 rounded-lg bg-slate-50 p-3"><div className="grid gap-2 sm:grid-cols-2"><input aria-label={`Speaker ${i + 1} name`} placeholder="Name" className="input" value={s.name} disabled={dis} onChange={e => updSp(i, { name: e.target.value })} /><input aria-label={`Speaker ${i + 1} job title`} placeholder="Job title" className="input" value={s.title} disabled={dis} onChange={e => updSp(i, { title: e.target.value })} /><input aria-label={`Speaker ${i + 1} organisation`} placeholder="Organisation" className="input" value={s.organisation} disabled={dis} onChange={e => updSp(i, { organisation: e.target.value })} /><ImageField id={`sp-${i}`} label="Photo" value={s.photo_url} disabled={dis} onChange={v => updSp(i, { photo_url: v })} /></div>
             <textarea aria-label={`Speaker ${i + 1} bio`} placeholder="Short bio" rows={2} className="input" value={s.bio} disabled={dis} onChange={e => updSp(i, { bio: e.target.value })} />{!dis && <button type="button" className="text-xs underline" onClick={() => { setSp(sp.filter((_, j) => j !== i)); setDirty(true); }}>Remove speaker</button>}</div>)}
           {!dis && <button type="button" className="btn btn-ghost text-xs" onClick={() => { setSp([...sp, { name: '', title: '', organisation: '', bio: '', photo_url: '' }]); setDirty(true); }}>+ Add speaker</button>}</section>
       </div>
       <div className="space-y-4">
         {!isNew && <Workflow entity="event" id={id!} status={status} publishAt={null} dirty={dirty} onChanged={() => void load()} />}
         <div className="card space-y-4 p-4">
-          <Field label="Banner image URL" htmlFor="e-ban"><input id="e-ban" className="input" type="url" value={f.banner_url} disabled={dis} onChange={e => set('banner_url', e.target.value)} /></Field>
+          <ImageField id="e-ban" label="Banner image" value={f.banner_url} disabled={dis} onChange={v => set('banner_url', v)} />
           <Field label="Registration" htmlFor="e-rm" hint="Built-in registration forms arrive in Phase 4 with spam protection. Until then use an external link."><select id="e-rm" className="input" value={f.registration_mode} disabled={dis} onChange={e => set('registration_mode', e.target.value)}><option value="external">External link</option><option value="none">No registration</option></select></Field>
           {f.registration_mode === 'external' && <><Field label="Registration link" htmlFor="e-ru"><input id="e-ru" className="input" type="url" value={f.registration_url} disabled={dis} onChange={e => set('registration_url', e.target.value)} /></Field>
             <Field label="Provider" htmlFor="e-rp"><select id="e-rp" className="input" value={f.registration_provider} disabled={dis} onChange={e => set('registration_provider', e.target.value)}>{PROVIDERS.map(p => <option key={p} value={p}>{p || 'Not specified'}</option>)}</select></Field></>}
@@ -93,5 +96,5 @@ export default function EventEdit() {
         {!readOnly && <div className="flex gap-2"><button className="btn btn-primary flex-1" disabled={busy}>{busy ? 'Saving…' : isNew ? 'Create draft' : 'Save changes'}</button>{!isNew && can('events.delete') && <button type="button" className="btn btn-danger" onClick={() => void del()}>Delete</button>}</div>}
         {dirty && !readOnly && <p className="text-xs text-amber-700">You have unsaved changes.</p>}
       </div>
-    </form><Toast msg={toast} /></>;
+    </form>{prev && <PreviewModal html={prev} onClose={() => setPrev('')} />}<Toast msg={toast} /></>;
 }
