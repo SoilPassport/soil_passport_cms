@@ -275,3 +275,6 @@ Top menu groups (Overview, Content, Media, Enquiries, Integrations, Administrati
 
 ### 7. My account and change password
 Click your name in the header (or **My account & password** in the mobile menu). Enter the current password, then the new one twice (at least 12 characters). The current password is re-checked first, and the change is written to the audit log (no password is recorded). The "Forgot password?" link on the sign-in page now opens a "Set a new password" screen. In Supabase → Authentication → URL Configuration, add the admin address (https://cms.soilpassport.com) to Redirect URLs, or the reset link will not return here. Untested against live Supabase email.
+
+### 8. Website header and footer on the sign-in screens
+Sign-in, reset-password, two-step and access-pending screens show a copy of the soilpassport.com header and footer (links open the website). The footer is also used inside the admin. The copy is generated from the website files; if you change the website's menu or footer, regenerate it with `node admin/scripts-gen-site-chrome.cjs /path/to/site` (needs the `postcss` package) and rebuild the admin.

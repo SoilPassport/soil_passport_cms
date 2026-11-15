@@ -2,33 +2,34 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { NAV, type NavItem } from '../lib/nav';
 import { useAuth } from '../lib/auth';
+import '../siteChrome.css';
+import { SITE_FOOTER, SITE_HEADER } from './siteChrome.generated';
 
-const SITE = 'https://soilpassport.com';
 const onPath = (pathname: string, p: string) => p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
 const itemActive = (pathname: string, i: NavItem) => onPath(pathname, i.path) || (i.children ?? []).some(c => onPath(pathname, c.path));
 
+/** The soilpassport.com footer, copied from the website at build time. */
 export function SiteFooter() {
-  return (
-<footer className="sp-footer" aria-label="Site footer">
-        <div className="mx-auto grid max-w-[1400px] gap-8 px-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr] lg:px-7">
-          <div><div className="sp-brand mb-2"><img src="/logo.png" alt="" />Soil Passport™</div><p className="max-w-[40ch] text-sm">Intelligence for soil. Technology for climate. Infrastructure for the future. Soil Passport Ltd — United Kingdom.</p></div>
-          <div><h4>Website</h4><a href={SITE} target="_blank" rel="noopener noreferrer">soilpassport.com</a><a href={SITE + '/news.html'} target="_blank" rel="noopener noreferrer">News</a><a href={SITE + '/events.html'} target="_blank" rel="noopener noreferrer">Events</a><a href={SITE + '/downloads.html'} target="_blank" rel="noopener noreferrer">Downloads</a></div>
-          <div><h4>Legal</h4><a href={SITE + '/privacy.html'} target="_blank" rel="noopener noreferrer">Privacy Policy</a><a href={SITE + '/terms.html'} target="_blank" rel="noopener noreferrer">Terms</a><a href={SITE + '/cookies.html'} target="_blank" rel="noopener noreferrer">Cookie Policy</a></div>
-        </div>
-        <div className="mx-auto max-w-[1400px] px-4 lg:px-7"><div className="bottom"><span>© {new Date().getFullYear()} Soil Passport Ltd. Staff-only administration area.</span><span>Access is logged.</span></div></div>
-      </footer>
-  );
+  return <div className="spweb" dangerouslySetInnerHTML={{ __html: SITE_FOOTER }} />;
 }
 
-/** Same header and footer on screens that have no menu yet (sign in, two-step, reset, notices). */
+/** The soilpassport.com header (menus work like the website's). Used before sign-in. */
+function SiteHeader() {
+  const click = (e: React.MouseEvent<HTMLDivElement>) => {
+    const t = e.target as HTMLElement;
+    const burger = t.closest('.hamburger');
+    if (burger) { e.currentTarget.querySelector('.navlinks')?.classList.toggle('open'); return; }
+    const tog = t.closest('.nav-dropdown-toggle');
+    if (tog) e.currentTarget.querySelectorAll('.nav-dropdown').forEach(d => { if (d.contains(tog)) d.classList.toggle('open'); else d.classList.remove('open'); });
+  };
+  return <div className="spweb" onClick={click} dangerouslySetInnerHTML={{ __html: SITE_HEADER }} />;
+}
+
+/** Website header and footer around screens that have no admin menu yet (sign in, two-step, reset, notices). */
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { session, signOut } = useAuth();
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sp-header"><div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 py-3 lg:px-7">
-        <span className="sp-brand"><img src="/logo.png" alt="" />Soil Passport™ <span className="hidden text-xs opacity-70 sm:inline">Admin</span></span>
-        {session && <button className="sp-gold" onClick={() => void signOut()}>Sign out</button>}
-      </div></header>
+      <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </div>
