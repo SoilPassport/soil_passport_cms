@@ -30,3 +30,15 @@ export async function pushContact(person: Person, note: string, token: string): 
   await hs('/crm/v3/objects/notes', { method: 'POST', body: JSON.stringify({ properties: { hs_note_body: note.slice(0, 60000), hs_timestamp: new Date().toISOString() }, associations: [{ to: { id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }] }) }, token);
   return { contactId: id };
 }
+
+// Deals: created for selected enquiry kinds when HUBSPOT_DEAL_PIPELINE and HUBSPOT_DEAL_STAGE (internal HubSpot ids) are set.
+export const dealsEnabled = (env: (k: string) => string) => !!env('HUBSPOT_DEAL_PIPELINE') && !!env('HUBSPOT_DEAL_STAGE');
+export const dealKinds = (env: (k: string) => string) => (env('HUBSPOT_DEAL_KINDS') || 'investment').split(',').map(s => s.trim()).filter(Boolean);
+export function dealProps(o: { kind: string; name: string; organisation?: string | null; description: string; pipeline: string; stage: string }): Record<string, string> {
+  const label = o.kind === 'investment' ? 'Investment enquiry' : o.kind === 'partnership' ? 'Partnership enquiry' : 'Enquiry';
+  return { dealname: `${label} - ${o.name}${o.organisation ? ` (${o.organisation})` : ''}`.slice(0, 250), pipeline: o.pipeline, dealstage: o.stage, description: o.description.slice(0, 60000) };
+}
+export async function createDeal(contactId: string, props: Record<string, string>, token: string): Promise<{ dealId: string }> {
+  const d = await hs('/crm/v3/objects/deals', { method: 'POST', body: JSON.stringify({ properties: props, associations: [{ to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }] }] }) }, token);
+  return { dealId: String(d.id) };
+}

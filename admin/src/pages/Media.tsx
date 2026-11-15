@@ -10,7 +10,7 @@ export default function Media() {
   const [rows, setRows] = useState<Asset[]>([]); const [loading, setLoading] = useState(true); const [err, setErr] = useState(''); const [toast, setToast] = useState('');
   const [q, setQ] = useState(''); const [kind, setKind] = useState(''); const [cur, setCur] = useState<Asset | null>(null); const [busy, setBusy] = useState(false);
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500); };
-  const load = useCallback(async () => { const { data, error } = await supabase.from('media_assets').select(ASSET_COLS).eq('status', 'active').order('created_at', { ascending: false }).limit(500); if (error) setErr(error.message); setRows((data ?? []) as Asset[]); setLoading(false); }, []);
+  const load = useCallback(async () => { const { data, error } = await supabase.from('media_assets').select(ASSET_COLS).eq('status', 'active').eq('visibility', 'public').order('created_at', { ascending: false }).limit(500); if (error) setErr(error.message); setRows((data ?? []) as Asset[]); setLoading(false); }, []);
   useEffect(() => { void load(); }, [load]);
   const shown = rows.filter(r => (!kind || r.kind === kind) && (!q || (r.filename + ' ' + (r.alt_text ?? '') + ' ' + (r.tags ?? []).join(' ')).toLowerCase().includes(q.toLowerCase())));
 

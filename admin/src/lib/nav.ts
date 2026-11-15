@@ -24,7 +24,8 @@ export const NAV: NavGroup[] = [
     { key: 'partnerships', label: 'Partnership Enquiries', path: '/partnerships', perm: 'partnerships.view', phase: 4, built: true, blurb: 'Partnership applications by category.' },
     { key: 'contact', label: 'Contact Enquiries', path: '/contact', perm: 'contact.view', phase: 4, built: true, blurb: 'Contact and demo requests with assignment and tracking.' },
     { key: 'press', label: 'Media & Press', path: '/press', perm: 'articles.view', phase: 2, blurb: 'Press releases. For now publish press releases as articles in a "Press" category.' },
-    { key: 'newsletter', label: 'Newsletter Management', path: '/newsletter', perm: 'newsletter.view', phase: 4, built: true, blurb: 'Subscribers with recorded consent.' } ] },
+    { key: 'newsletter', label: 'Newsletter Management', path: '/newsletter', perm: 'newsletter.view', phase: 4, built: true, blurb: 'Subscribers with recorded consent.',
+      children: [{ label: 'Subscribers', path: '/newsletter' }, { label: 'Campaigns', path: '/newsletter/campaigns' }] } ] },
   { label: 'Integrations', items: [
     { key: 'crm', label: 'CRM Integration', path: '/crm', perm: 'crm.view', phase: 5, built: true, blurb: 'HubSpot sync status, retries and failed jobs.' },
     { key: 'email', label: 'Email Configuration', path: '/email', perm: 'email.view', phase: 5, built: true, blurb: 'Provider, templates, recipients and test email.' } ] },

@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
-export interface Asset { id: string; kind: 'image' | 'video' | 'pdf' | 'document' | 'svg' | 'other'; filename: string; mime_type: string; size_bytes: number; public_url: string | null; alt_text: string | null; caption: string | null; category: string | null; tags: string[]; width: number | null; height: number | null; created_at: string }
-export const ASSET_COLS = 'id,kind,filename,mime_type,size_bytes,public_url,alt_text,caption,category,tags,width,height,created_at';
+export interface Asset { id: string; kind: 'image' | 'video' | 'pdf' | 'document' | 'svg' | 'other'; filename: string; mime_type: string; size_bytes: number; public_url: string | null; alt_text: string | null; caption: string | null; category: string | null; tags: string[]; width: number | null; height: number | null; created_at: string; visibility?: 'public' | 'private' }
+export const ASSET_COLS = 'id,kind,filename,mime_type,size_bytes,public_url,alt_text,caption,category,tags,width,height,created_at,visibility';
 export const CATEGORIES = ['corporate', 'product', 'platform_screenshots', 'events', 'webinars', 'research', 'biochar', 'bioenergy', 'team', 'press', 'marketing', 'other'];
 export const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,application/pdf,.docx,.xlsx,.pptx';
 
@@ -43,13 +43,14 @@ function put(url: string, file: File, onProgress: (p: number) => void): Promise<
 }
 
 export interface UploadResult { asset: Asset; duplicate: boolean }
-export async function uploadFile(file: File, onProgress: (p: number) => void): Promise<UploadResult> {
+export async function uploadFile(file: File, onProgress: (p: number) => void, opts: { private?: boolean } = {}): Promise<UploadResult> {
+  const priv = opts.private === true;
   const checksum = await sha256(file);
-  const s = await call<{ duplicate?: Asset; uploadUrl?: string; key?: string }>({ action: 'sign', filename: file.name, mime: file.type, size: file.size, checksum });
+  const s = await call<{ duplicate?: Asset; uploadUrl?: string; key?: string }>({ action: 'sign', filename: file.name, mime: file.type, size: file.size, checksum, private: priv });
   if (s.duplicate) { const { data } = await supabase.from('media_assets').select(ASSET_COLS).eq('id', s.duplicate.id).single(); return { asset: data as Asset, duplicate: true }; }
   await put(s.uploadUrl!, file, onProgress);
   const dim = (await imageSize(file)) ?? (await videoMeta(file));
-  const c = await call<{ asset: Asset }>({ action: 'confirm', key: s.key, filename: file.name, mime: file.type, size: file.size, checksum, ...(dim ?? {}) });
+  const c = await call<{ asset: Asset }>({ action: 'confirm', key: s.key, filename: file.name, mime: file.type, size: file.size, checksum, private: priv, ...(dim ?? {}) });
   return { asset: c.asset, duplicate: false };
 }
 export const deleteAsset = (id: string) => call<{ ok: boolean }>({ action: 'delete', id });

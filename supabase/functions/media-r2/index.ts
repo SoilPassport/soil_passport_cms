@@ -29,17 +29,20 @@ Deno.serve(async (req) => {
   const action = String(body.action ?? '');
 
   const admin = createClient(url, env('SUPABASE_SERVICE_ROLE_KEY'));
-  const bucket = env('R2_BUCKET'), base = env('R2_PUBLIC_BASE_URL').replace(/\/+$/, '');
-  const endpoint = `https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/${bucket}`;
+  const isPrivate = body.private === true;
+  if (isPrivate && !env('R2_PRIVATE_BUCKET')) return json({ error: 'Private storage is not configured yet (missing: R2_PRIVATE_BUCKET).' }, 503, cors);
+  const bucket = isPrivate ? env('R2_PRIVATE_BUCKET') : env('R2_BUCKET'), base = env('R2_PUBLIC_BASE_URL').replace(/\/+$/, '');
+  const host = `https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`;
+  let endpoint = `${host}/${bucket}`;
   const r2 = new AwsClient({ accessKeyId: env('R2_ACCESS_KEY_ID'), secretAccessKey: env('R2_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
 
   if (action === 'sign') {
-    if (!(await can('media.edit'))) return json({ error: 'Forbidden' }, 403, cors);
+    if (!(await can(isPrivate ? 'documents.edit' : 'media.edit'))) return json({ error: 'Forbidden' }, 403, cors);
     const v = validateUpload(String(body.filename ?? ''), String(body.mime ?? ''), Number(body.size));
     if (!v.ok) return json({ error: v.error }, 400, cors);
     const checksum = typeof body.checksum === 'string' && /^[0-9a-f]{64}$/.test(body.checksum) ? body.checksum : null;
     if (checksum) {
-      const { data: dup } = await admin.from('media_assets').select('id,filename,public_url,kind').eq('checksum_sha256', checksum).eq('status', 'active').maybeSingle();
+      const { data: dup } = await admin.from('media_assets').select('id,filename,public_url,kind').eq('checksum_sha256', checksum).eq('visibility', isPrivate ? 'private' : 'public').eq('status', 'active').maybeSingle();
       if (dup) return json({ duplicate: dup }, 200, cors);
     }
     const key = buildKey(new Date(), crypto.randomUUID(), v.filename);
@@ -48,7 +51,7 @@ Deno.serve(async (req) => {
   }
 
   if (action === 'confirm') {
-    if (!(await can('media.edit'))) return json({ error: 'Forbidden' }, 403, cors);
+    if (!(await can(isPrivate ? 'documents.edit' : 'media.edit'))) return json({ error: 'Forbidden' }, 403, cors);
     if (!isOwnKey(body.key)) return json({ error: 'Invalid key' }, 400, cors);
     const v = validateUpload(String(body.filename ?? ''), String(body.mime ?? ''), Number(body.size));
     if (!v.ok) return json({ error: v.error }, 400, cors);
@@ -64,7 +67,7 @@ Deno.serve(async (req) => {
     const checksum = typeof body.checksum === 'string' && /^[0-9a-f]{64}$/.test(body.checksum) ? body.checksum : null;
     const { data, error } = await admin.from('media_assets').insert({
       kind: v.kind, filename: v.filename, mime_type: String(body.mime), size_bytes: realSize, checksum_sha256: checksum,
-      storage_bucket: bucket, storage_key: body.key, visibility: 'public', public_url: `${base}/${body.key}`,
+      storage_bucket: bucket, storage_key: body.key, visibility: isPrivate ? 'private' : 'public', public_url: isPrivate ? null : `${base}/${body.key}`,
       width: int(body.width), height: int(body.height), duration_seconds: int(body.duration),
       alt_text: typeof body.alt_text === 'string' ? body.alt_text.slice(0, 300) : null, uploaded_by: me.user.id,
     }).select('*').single();
@@ -76,8 +79,9 @@ Deno.serve(async (req) => {
   if (action === 'delete') {
     if (!(await can('media.delete'))) return json({ error: 'Forbidden' }, 403, cors);
     const id = String(body.id ?? '');
-    const { data: a } = await admin.from('media_assets').select('id,filename,public_url,storage_key').eq('id', id).maybeSingle();
+    const { data: a } = await admin.from('media_assets').select('id,filename,public_url,storage_key,storage_bucket').eq('id', id).maybeSingle();
     if (!a) return json({ error: 'File not found' }, 404, cors);
+    endpoint = `${host}/${a.storage_bucket}`;
     // Refuse if the file is still referenced by content (by URL or by id)
     const like = `%${a.storage_key}%`;
     const [art, ev, pg, sp, vid, gi, dv] = await Promise.all([

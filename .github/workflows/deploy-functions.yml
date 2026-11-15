@@ -38,3 +38,7 @@ jobs:
           supabase functions deploy integrations --project-ref "$REF"
           # Public form endpoint: called by website visitors, so no login token. It does its own spam checks.
           supabase functions deploy submit-form --no-verify-jwt --project-ref "$REF"
+          # Public endpoints (called by website visitors or by cron): no login token, each does its own checks.
+          supabase functions deploy doc-download --no-verify-jwt --project-ref "$REF"
+          supabase functions deploy track --no-verify-jwt --project-ref "$REF"
+          supabase functions deploy scheduled --no-verify-jwt --project-ref "$REF"

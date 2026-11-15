@@ -167,3 +167,64 @@ Plus the R2 secrets from Phase 3.
 - Sitemap and robots.txt are generated for download; they are not updated automatically.
 - Articles, pages and events are rendered in the browser, so search engines that do not run JavaScript will not index them.
 - Secret status only shows whether values are set, not whether they are valid.
+
+
+---
+
+# Phase 7: reminders, approval emails, restricted downloads, newsletters, HubSpot deals, analytics
+
+**Untested against live services.** Work through the checklist and report anything that fails.
+
+### 1. Database
+Supabase → SQL Editor → run `0007_reminders_approvals_downloads_newsletter_analytics.sql` (after 0006). It adds two permissions, **Send newsletter campaigns** and **Give people access to restricted documents**. They are given to the Admin role automatically; Super Admins have everything. Give them to anyone else on the Roles & Permissions page.
+
+### 2. Private storage bucket (restricted documents)
+Cloudflare → R2 → Create bucket `soilpassport-private`. Leave **public access OFF** (no r2.dev address, no custom domain).
+- Settings → CORS policy: same as your public bucket (allow `PUT` from `https://cms.soilpassport.com`, allowed headers `*`).
+- Your R2 API token must have **Object Read & Write** on this bucket too (edit the token, or make a new one that covers both buckets and update the R2 secrets).
+
+### 3. New Supabase secrets
+| Name | Value |
+|---|---|
+| `R2_PRIVATE_BUCKET` | `soilpassport-private` |
+| `CRON_SECRET` | a long random string (at least 24 characters) |
+| `HUBSPOT_DEAL_PIPELINE` | optional: HubSpot pipeline ID for deals |
+| `HUBSPOT_DEAL_STAGE` | optional: stage ID inside that pipeline |
+| `HUBSPOT_DEAL_KINDS` | optional: `investment` (default) or `investment,partnership` |
+| `ADMIN_URL` | optional, default `https://cms.soilpassport.com` (used in links inside emails) |
+
+HubSpot deals: add the scopes `crm.objects.deals.read` and `crm.objects.deals.write` to your private app. Pipeline and stage IDs are in HubSpot → Settings → Objects → Deals → Pipelines (open a pipeline; the IDs are shown in the stage settings or use the CRM API). Deals are only created when both the pipeline and stage secrets are set.
+
+### 4. Deploy and schedule
+1. Actions → **Deploy Supabase functions** → Run (deploys all functions, including `doc-download`, `track` and `scheduled`).
+2. Add GitHub repository secrets `SUPABASE_PROJECT_REF` (already added) and `CRON_SECRET` (same value as the Supabase secret).
+3. Actions → **Scheduled jobs** → Run workflow once and check it succeeds. It then runs every 5 minutes. (GitHub can delay these runs; for exact timing use pg_cron instead: Supabase → Database → Extensions → enable `pg_cron` and `pg_net`, then run
+   `select cron.schedule('sp-scheduled', '*/5 * * * *', $$ select net.http_post(url := 'https://YOUR_REF.supabase.co/functions/v1/scheduled', headers := jsonb_build_object('x-cron-secret', 'YOUR_CRON_SECRET')) $$);`. If you use this, disable the GitHub workflow.)
+4. Run **Build admin app**, upload the new files to `cms.soilpassport.com`, then upload the new website zip (paste your keys into `assets/cms-config.js` again: the zip contains placeholders).
+
+### What each feature does
+- **Event reminders.** Events with native registration have a "Reminder email" setting (for example 24 hours before). The scheduled job emails each registrant once. Edit the wording under Email Configuration → "Event reminder to registrants".
+- **Review and approval emails.** When an article, page, event or document moves to *Pending review*, everyone with the matching **approve** permission (and Super Admins) is emailed. When a reviewer approves, publishes or returns it to draft, the author is emailed. Wording: "Content review and approval alert".
+- **Restricted documents.** In Document Management set Access to Restricted, Investor only or Internal and upload the file with **Upload private file**. These are never listed on the website. For Restricted and Investor only, **Access links** emails a personal link that expires and has a download limit. Staff can use **Open current file**.
+- **Download counts.** The website downloads page now goes through the counter, so each download is counted and shown in Document Management and under Reports.
+- **Newsletter campaigns.** Newsletter → Campaigns: write, **Send test to me**, then **Send**. Only confirmed subscribers receive it, each with their own unsubscribe link. Sending runs in batches (about 40 every 5 minutes); use **Send next batch now** to go faster, or **Stop sending**.
+- **HubSpot deals.** Investment enquiries (and partnership if enabled) also create a Deal linked to the contact, with the investor type and interest in the description.
+- **Visitor analytics.** The website counts page views without cookies. See Reports & Analytics → Website traffic.
+
+### Verification checklist
+- [ ] System Configuration shows R2 private bucket, Scheduled jobs secret (and HubSpot deals if you set them) as present. "Run background jobs now" returns a result without errors.
+- [ ] Event with native registration and a 1-hour reminder: register with your own email, set the event to start within the hour; run the jobs; the reminder arrives once, not twice.
+- [ ] Submit an article for review as an Editor: approvers get an email. Approve it: the author gets an email.
+- [ ] Upload a private file to a new Investor-only document, publish it, confirm it is **not** on downloads.html. Email yourself an access link: it downloads once per use and stops after the limit, after expiry, or after Withdraw.
+- [ ] Download a public document from downloads.html: its download count goes up by one.
+- [ ] Newsletter: **Send test to me** arrives with a working unsubscribe link. Send a real campaign to a small test list first.
+- [ ] Submit a test investor enquiry: a Deal appears in HubSpot linked to the contact.
+- [ ] Visit a few website pages, then Reports shows page views. With your browser's Do Not Track on, nothing is counted.
+
+### Limits of this phase
+- Reminders: one reminder per registration, at the time set on the event. No reminder when registration is external.
+- Approval emails cover articles, pages, events and documents (not roadmap, galleries or videos). Approvers cannot opt out per person.
+- Access links can be forwarded by the recipient, and some email security scanners open links and use up a download. A downloaded file can be shared; there is no watermarking. "Internal" documents are staff only and have no links.
+- Newsletters: no open or click tracking, no segments, no scheduling for a future time, no automatic bounce handling (mark bounces manually in Subscribers). Throughput is about 480 emails per hour on the 5-minute schedule.
+- HubSpot deals are created once per enquiry, with a fixed pipeline and stage. They are not updated afterwards and carry no amount.
+- Analytics: page views only (no events, goals or funnels). Bots are filtered by browser name only, and anyone can send fake traffic. Country comes from the network header and may be blank. Data is kept 400 days. Privacy Policy wording was updated; have it reviewed for your own legal needs.

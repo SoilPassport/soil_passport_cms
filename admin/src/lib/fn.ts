@@ -10,5 +10,5 @@ export async function invokeFn<T>(name: string, body: Record<string, unknown>): 
   if (data?.error) throw new Error(String(data.error));
   return data as T;
 }
-export interface IntegrationStatus { r2: S; turnstile: S; hubspot: S; email: S; cors: S }
+export interface IntegrationStatus { r2: S; turnstile: S; hubspot: S; email: S; cors: S; r2_private: S; cron: S; hubspot_deals: S }
 interface S { configured: boolean; missing: string[] }

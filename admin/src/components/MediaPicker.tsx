@@ -26,7 +26,7 @@ export function UploadButton({ onDone, onError }: { onDone: (a: Asset) => void; 
 export default function MediaPicker({ kinds, multiple, onPick, onClose }: { kinds?: Asset['kind'][]; multiple?: boolean; onPick: (a: Asset[]) => void; onClose: () => void }) {
   const [rows, setRows] = useState<Asset[]>([]); const [loading, setLoading] = useState(true); const [q, setQ] = useState(''); const [err, setErr] = useState(''); const [sel, setSel] = useState<Asset[]>([]);
   const load = useCallback(async () => {
-    let query = supabase.from('media_assets').select(ASSET_COLS).eq('status', 'active').order('created_at', { ascending: false }).limit(200);
+    let query = supabase.from('media_assets').select(ASSET_COLS).eq('status', 'active').eq('visibility', 'public').order('created_at', { ascending: false }).limit(200);
     if (kinds?.length) query = query.in('kind', kinds);
     const { data, error } = await query; if (error) setErr(error.message); setRows((data ?? []) as Asset[]); setLoading(false);
   }, [kinds]);

@@ -34,6 +34,7 @@ import Roadmap from './pages/Roadmap';
 import Crm from './pages/Crm';
 import Email from './pages/Email';
 import Seo from './pages/Seo';
+import Campaigns from './pages/Campaigns';
 import Reports from './pages/Reports';
 import System from './pages/System';
 import Storage from './pages/Storage';
@@ -54,6 +55,7 @@ function Guarded() {
         {a.can('pages.edit') && <><Route path="/pages/new" element={<PageEdit />} /><Route path="/pages/:id" element={<PageEdit />} /></>}
         {a.can('articles.edit') && <><Route path="/articles/new" element={<ArticleEdit />} /><Route path="/articles/categories" element={<Categories />} /><Route path="/articles/:id" element={<ArticleEdit />} /></>}
         {a.can('events.edit') && <><Route path="/events/new" element={<EventEdit />} /><Route path="/events/:id" element={<EventEdit />} /></>}
+        {a.can('newsletter.view') && <Route path="/newsletter/campaigns" element={<Campaigns />} />}
         {a.can('gallery.edit') && <><Route path="/gallery/new" element={<GalleryEdit />} /></>}
         {a.can('gallery.view') && <Route path="/gallery/:id" element={<GalleryEdit />} />}
         {a.can('documents.edit') && <Route path="/documents/new" element={<DocumentEdit />} />}
