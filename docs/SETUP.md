@@ -272,3 +272,6 @@ Top menu groups (Overview, Content, Media, Enquiries, Integrations, Administrati
 - [ ] HubSpot, Eventbrite and R2 tests report success with valid details and a clear message with wrong ones.
 - [ ] Create a code limited to 2 uses, register three different people on a native-registration event: the third is refused.
 - [ ] An event that requires a code refuses registration without one.
+
+### 7. My account and change password
+Click your name in the header (or **My account & password** in the mobile menu). Enter the current password, then the new one twice (at least 12 characters). The current password is re-checked first, and the change is written to the audit log (no password is recorded). The "Forgot password?" link on the sign-in page now opens a "Set a new password" screen. In Supabase → Authentication → URL Configuration, add the admin address (https://cms.soilpassport.com) to Redirect URLs, or the reset link will not return here. Untested against live Supabase email.

@@ -31,7 +31,7 @@ export default function Mfa() {
     setBusy(false);
   }
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-[68vh] items-center justify-center p-4">
       <form onSubmit={verify} className="card w-full max-w-sm space-y-4 p-6">
         <div><h1 className="text-lg font-semibold">{mfaEnrolled ? 'Two-factor verification' : 'Set up two-factor authentication'}</h1>
           <p className="text-sm text-slate-500">{mfaEnrolled ? 'Enter the 6-digit code from your authenticator app.' : 'Your role requires MFA. Scan the QR code with an authenticator app, then enter the code.'}</p></div>

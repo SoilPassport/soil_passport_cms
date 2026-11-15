@@ -7,6 +7,7 @@ export interface RoleInfo { key: string; name: string; requires_mfa: boolean; }
 interface AuthState {
   loading: boolean; session: Session | null; profile: Profile | null; roles: RoleInfo[]; permissions: Set<string>;
   aal: 'aal1' | 'aal2' | null; mfaRequired: boolean; mfaEnrolled: boolean;
+  recovery: boolean; endRecovery: () => void;
   can: (perm: string) => boolean; refresh: () => Promise<void>; signOut: () => Promise<void>;
 }
 const Ctx = createContext<AuthState | null>(null);
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [aal, setAal] = useState<'aal1' | 'aal2' | null>(null);
   const [mfaEnrolled, setMfaEnrolled] = useState(false);
+  const [recovery, setRecovery] = useState(false);
 
   const load = useCallback(async (s: Session | null) => {
     setSession(s);
@@ -44,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => load(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => { void load(s); });
+    const { data: sub } = supabase.auth.onAuthStateChange((e, s) => { if (e === 'PASSWORD_RECOVERY') setRecovery(true); void load(s); });
     return () => sub.subscription.unsubscribe();
   }, [load]);
 
@@ -55,11 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // UI convenience only. Real enforcement is Row Level Security in the database.
     const can = (perm: string) => active && (isSuper || permissions.has(perm));
     return {
-      loading, session, profile, roles, permissions, aal, mfaRequired, mfaEnrolled, can,
+      loading, session, profile, roles, permissions, aal, mfaRequired, mfaEnrolled, can, recovery, endRecovery: () => setRecovery(false),
       refresh: async () => { const { data } = await supabase.auth.getSession(); await load(data.session); },
       signOut: async () => { await supabase.auth.signOut(); },
     };
-  }, [loading, session, profile, roles, permissions, aal, mfaEnrolled, load]);
+  }, [loading, session, profile, roles, permissions, aal, mfaEnrolled, recovery, load]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

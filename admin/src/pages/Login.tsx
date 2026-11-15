@@ -19,7 +19,7 @@ export default function Login() {
     setErr(''); setInfo('If an account exists for that email, a reset link has been sent.');
   }
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-[68vh] items-center justify-center p-4">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-6">
         <div><h1 className="text-lg font-semibold">Soil Passport™ CMS</h1><p className="text-sm text-slate-500">Authorised staff only. Sign in to continue.</p></div>
         {err && <ErrorBox msg={err} />}{info && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{info}</p>}

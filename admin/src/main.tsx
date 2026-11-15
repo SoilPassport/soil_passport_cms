@@ -5,10 +5,11 @@ import './index.css';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { ALL_ITEMS } from './lib/nav';
-import Layout from './components/Layout';
+import Layout, { Shell } from './components/Layout';
 import { Spinner } from './components/ui';
 import Login from './pages/Login';
 import Mfa from './pages/Mfa';
+import Account, { SetPassword } from './pages/Account';
 import { AccessPending, SetupRequired } from './pages/Notices';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
@@ -47,9 +48,10 @@ const BUILT: Record<string, JSX.Element> = { vouchers: <Vouchers />, config: <In
 function Guarded() {
   const a = useAuth();
   if (a.loading) return <Spinner />;
-  if (!a.session) return <Login />;
-  if (a.profile?.status !== 'active' || a.roles.length === 0) return <AccessPending />;
-  if (a.mfaRequired && a.aal !== 'aal2') return <Mfa />;
+  if (!a.session) return <Shell><Login /></Shell>;
+  if (a.recovery) return <Shell><SetPassword /></Shell>;
+  if (a.profile?.status !== 'active' || a.roles.length === 0) return <Shell><AccessPending /></Shell>;
+  if (a.mfaRequired && a.aal !== 'aal2') return <Shell><Mfa /></Shell>;
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -62,6 +64,7 @@ function Guarded() {
         {a.can('gallery.view') && <Route path="/gallery/:id" element={<GalleryEdit />} />}
         {a.can('documents.edit') && <Route path="/documents/new" element={<DocumentEdit />} />}
         {a.can('documents.view') && <Route path="/documents/:id" element={<DocumentEdit />} />}
+        <Route path="/account" element={<Account />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>);

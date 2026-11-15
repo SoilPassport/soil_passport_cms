@@ -7,6 +7,34 @@ const SITE = 'https://soilpassport.com';
 const onPath = (pathname: string, p: string) => p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
 const itemActive = (pathname: string, i: NavItem) => onPath(pathname, i.path) || (i.children ?? []).some(c => onPath(pathname, c.path));
 
+export function SiteFooter() {
+  return (
+<footer className="sp-footer" aria-label="Site footer">
+        <div className="mx-auto grid max-w-[1400px] gap-8 px-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr] lg:px-7">
+          <div><div className="sp-brand mb-2"><img src="/logo.png" alt="" />Soil Passport™</div><p className="max-w-[40ch] text-sm">Intelligence for soil. Technology for climate. Infrastructure for the future. Soil Passport Ltd — United Kingdom.</p></div>
+          <div><h4>Website</h4><a href={SITE} target="_blank" rel="noopener noreferrer">soilpassport.com</a><a href={SITE + '/news.html'} target="_blank" rel="noopener noreferrer">News</a><a href={SITE + '/events.html'} target="_blank" rel="noopener noreferrer">Events</a><a href={SITE + '/downloads.html'} target="_blank" rel="noopener noreferrer">Downloads</a></div>
+          <div><h4>Legal</h4><a href={SITE + '/privacy.html'} target="_blank" rel="noopener noreferrer">Privacy Policy</a><a href={SITE + '/terms.html'} target="_blank" rel="noopener noreferrer">Terms</a><a href={SITE + '/cookies.html'} target="_blank" rel="noopener noreferrer">Cookie Policy</a></div>
+        </div>
+        <div className="mx-auto max-w-[1400px] px-4 lg:px-7"><div className="bottom"><span>© {new Date().getFullYear()} Soil Passport Ltd. Staff-only administration area.</span><span>Access is logged.</span></div></div>
+      </footer>
+  );
+}
+
+/** Same header and footer on screens that have no menu yet (sign in, two-step, reset, notices). */
+export function Shell({ children }: { children: React.ReactNode }) {
+  const { session, signOut } = useAuth();
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="sp-header"><div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 py-3 lg:px-7">
+        <span className="sp-brand"><img src="/logo.png" alt="" />Soil Passport™ <span className="hidden text-xs opacity-70 sm:inline">Admin</span></span>
+        {session && <button className="sp-gold" onClick={() => void signOut()}>Sign out</button>}
+      </div></header>
+      <main className="flex-1">{children}</main>
+      <SiteFooter />
+    </div>
+  );
+}
+
 export default function Layout() {
   const { can, profile, roles, signOut } = useAuth();
   const loc = useLocation();
@@ -35,12 +63,14 @@ export default function Layout() {
             {groups.map(g => <NavLink key={g.label} to={g.items[0].path} className={() => 'sp-tab ' + (g === current ? 'active' : '')} aria-current={g === current ? 'page' : undefined}>{g.label}</NavLink>)}
           </nav>
           <div className="flex items-center gap-3 text-sm">
-            <div className="hidden text-right xl:block"><div className="font-medium leading-tight">{profile?.full_name || profile?.email}</div><div className="text-xs opacity-70">{roles.map(r => r.name).join(', ') || 'No role'}</div></div>
+            <NavLink to="/account" title="My account and password" className="hidden text-right xl:block"><div className="font-medium leading-tight">{profile?.full_name || profile?.email}</div><div className="text-xs opacity-70">{roles.map(r => r.name).join(', ') || 'No role'}</div></NavLink>
+            <NavLink to="/account" className="sp-tab hidden lg:inline-flex xl:hidden" style={{ padding: '0 .6rem' }}>Account</NavLink>
             <button className="sp-gold" onClick={() => void signOut()}>Sign out</button>
             <button className="rounded border border-white/20 px-2.5 py-1.5 lg:hidden" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(m => !m)}>{menu ? '✕' : '☰'}</button>
           </div>
         </div>
         {menu && <nav aria-label="Mobile" className="max-h-[75vh] overflow-y-auto border-t border-white/10 px-4 pb-4 lg:hidden">
+          <div className="sp-mobile mt-3"><NavLink to="/account" onClick={() => setMenu(false)}>My account &amp; password</NavLink></div>
           {groups.map(g => <div key={g.label} className="sp-mobile mt-3">
             <div className="px-2 py-1 text-[11px] uppercase tracking-widest" style={{ color: 'var(--gold)', fontFamily: "'IBM Plex Mono',monospace" }}>{g.label}</div>
             {links(g, true)}</div>)}
@@ -53,13 +83,6 @@ export default function Layout() {
         <main className="min-w-0 flex-1 p-4 lg:p-8"><div className="mx-auto max-w-6xl"><Outlet /></div></main>
       </div>
 
-      <footer className="sp-footer" aria-label="Site footer">
-        <div className="mx-auto grid max-w-[1400px] gap-8 px-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr] lg:px-7">
-          <div><div className="sp-brand mb-2"><img src="/logo.png" alt="" />Soil Passport™</div><p className="max-w-[40ch] text-sm">Intelligence for soil. Technology for climate. Infrastructure for the future. Soil Passport Ltd — United Kingdom.</p></div>
-          <div><h4>Website</h4><a href={SITE} target="_blank" rel="noopener noreferrer">soilpassport.com</a><a href={SITE + '/news.html'} target="_blank" rel="noopener noreferrer">News</a><a href={SITE + '/events.html'} target="_blank" rel="noopener noreferrer">Events</a><a href={SITE + '/downloads.html'} target="_blank" rel="noopener noreferrer">Downloads</a></div>
-          <div><h4>Legal</h4><a href={SITE + '/privacy.html'} target="_blank" rel="noopener noreferrer">Privacy Policy</a><a href={SITE + '/terms.html'} target="_blank" rel="noopener noreferrer">Terms</a><a href={SITE + '/cookies.html'} target="_blank" rel="noopener noreferrer">Cookie Policy</a></div>
-        </div>
-        <div className="mx-auto max-w-[1400px] px-4 lg:px-7"><div className="bottom"><span>© {new Date().getFullYear()} Soil Passport Ltd. Staff-only administration area.</span><span>Access is logged.</span></div></div>
-      </footer>
+      <SiteFooter />
     </div>);
 }
