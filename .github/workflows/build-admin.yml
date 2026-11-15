@@ -1,0 +1,48 @@
+name: Build admin app
+
+# Run manually: Actions tab -> "Build admin app" -> Run workflow.
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
+#   VITE_SUPABASE_URL        e.g. https://xxxx.supabase.co
+#   VITE_SUPABASE_ANON_KEY   the "anon public" key (NOT the service-role key)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - name: Check secrets are set
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as repository secrets first."
+            exit 1
+          fi
+      - run: npm ci
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_ENV: production
+        run: npm run build
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: cms-admin-dist
+          path: admin/dist
+          include-hidden-files: true   # keeps .htaccess
+          if-no-files-found: error
