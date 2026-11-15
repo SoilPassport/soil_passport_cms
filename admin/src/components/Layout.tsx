@@ -8,6 +8,7 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const loc = useLocation();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [subOpen, setSubOpen] = useState<Record<string, boolean>>({});
   const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => !i.perm || can(i.perm)) })).filter(g => g.items.length);
 
   const sidebar = (
@@ -18,11 +19,25 @@ export default function Layout() {
           <button className="flex w-full items-center justify-between px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300"
             aria-expanded={!collapsed[g.label]} onClick={() => setCollapsed(c => ({ ...c, [g.label]: !c[g.label] }))}>
             {g.label}<span aria-hidden>{collapsed[g.label] ? '▸' : '▾'}</span></button>
-          {!collapsed[g.label] && g.items.map(i => (
-            <NavLink key={i.key} to={i.path} end={i.path === '/'} onClick={() => setOpen(false)}
-              className={({ isActive }) => `flex items-center justify-between rounded-md px-2 py-1.5 ${isActive ? 'bg-white/10 text-white' : 'hover:bg-white/5'}`}>
-              <span>{i.label}</span>{!i.built && <span className="text-[10px] text-slate-500">P{i.phase}</span>}
-            </NavLink>))}
+          {!collapsed[g.label] && g.items.map(i => {
+            const kids = (i.children ?? []).filter(c => !c.perm || can(c.perm));
+            if (!kids.length) return (
+              <NavLink key={i.key} to={i.path} end={i.path === '/'} onClick={() => setOpen(false)}
+                className={({ isActive }) => `flex items-center justify-between rounded-md px-2 py-1.5 ${isActive ? 'bg-white/10 text-white' : 'hover:bg-white/5'}`}>
+                <span>{i.label}</span>{!i.built && <span className="text-[10px] text-slate-500">P{i.phase}</span>}
+              </NavLink>);
+            const inside = loc.pathname === i.path || loc.pathname.startsWith(i.path + '/');
+            const isOpen = subOpen[i.key] ?? inside;
+            return (
+              <div key={i.key}>
+                <button aria-expanded={isOpen} onClick={() => setSubOpen(o => ({ ...o, [i.key]: !isOpen }))}
+                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left ${inside ? 'text-white' : 'hover:bg-white/5'}`}>
+                  <span>{i.label}</span><span aria-hidden className="text-xs text-slate-500">{isOpen ? '▾' : '▸'}</span></button>
+                {isOpen && <div className="ml-3 border-l border-white/10 pl-2">{kids.map(c => (
+                  <NavLink key={c.path} to={c.path} end onClick={() => setOpen(false)}
+                    className={({ isActive }) => `block rounded-md px-2 py-1 text-[13px] ${isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>{c.label}</NavLink>))}</div>}
+              </div>);
+          })}
         </div>))}
     </nav>);
 

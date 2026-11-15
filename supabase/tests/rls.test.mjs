@@ -7,7 +7,7 @@ await db.exec(`create schema auth; create table auth.users(id uuid primary key, 
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 create or replace function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
 create role anon; create role authenticated;`);
-for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions']) {
+for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration']) {
   try { await db.exec(fs.readFileSync(''+new URL('../migrations/',import.meta.url).pathname+''+f+'.sql','utf8')); console.log('OK',f);} catch(e){console.log('FAIL',f,e.message); process.exit(1)}
 }
 await db.exec(`grant usage on schema public to anon, authenticated; grant select,insert,update,delete on all tables in schema public to anon, authenticated; grant execute on all functions in schema public to anon, authenticated;`);
@@ -40,3 +40,18 @@ await db.exec("select write_audit('test.action')");
 console.log('audit update:', await db.query("update audit_logs set action='x'").then(()=>'NO ERROR (bad)').catch(e=>'ERR '+e.message));
 console.log('has_permission for another user (expect false):', (await as(u(2),'aal1',`select public.has_permission('articles.edit','${u(1)}') as v`))[0].v);
 console.log('anon write_audit (expect ERR):', await (async()=>{await db.exec("select set_config('request.jwt.claim.sub','',false); set role anon;");try{await db.query("select write_audit('spam')");return 'NO ERROR (bad)'}catch(e){return 'ERR '+e.message}finally{await db.exec('reset role')}})());
+
+// ---- 0004: public visibility ----
+await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false), set_config('request.jwt.claims','',false);
+insert into articles(slug,title,status,published_at) values ('pub','Pub','published', now() - interval '1 hour');
+insert into articles(slug,title,status,publish_at) values ('due','Due','scheduled', now() - interval '1 minute');
+insert into articles(slug,title,status,publish_at) values ('future','Future','scheduled', now() + interval '1 day');
+insert into articles(slug,title,status) values ('draft1','Draft','draft');`);
+await db.exec('set role anon');
+const vis=(await db.query('select slug from articles order by slug')).rows.map(r=>r.slug);
+await db.exec('reset role');
+console.log('ANON sees articles (expect due,pub):', JSON.stringify(vis));
+await db.exec(`insert into system_settings(key,category,value,is_public) values ('announcement','website','{"text":"hi"}',true),('secret_setting','general','{}',false);`);
+await db.exec('set role anon');
+console.log('ANON sees settings (expect announcement):', JSON.stringify((await db.query('select key from system_settings')).rows.map(r=>r.key)));
+await db.exec('reset role');
