@@ -8,9 +8,11 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { buildKey, isOwnKey, validateUpload } from '../_shared/media-rules.ts';
 
 const json = (b: unknown, s: number, h: Record<string, string>) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
-const env = (k: string) => Deno.env.get(k) ?? '';
+import { env, loadConfig } from '../_shared/config.ts';
 
 Deno.serve(async (req) => {
+  const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
+  await loadConfig(admin);
   const cors = corsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, cors);
@@ -28,7 +30,6 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
   const action = String(body.action ?? '');
 
-  const admin = createClient(url, env('SUPABASE_SERVICE_ROLE_KEY'));
   const isPrivate = body.private === true;
   if (isPrivate && !env('R2_PRIVATE_BUCKET')) return json({ error: 'Private storage is not configured yet (missing: R2_PRIVATE_BUCKET).' }, 503, cors);
   const bucket = isPrivate ? env('R2_PRIVATE_BUCKET') : env('R2_BUCKET'), base = env('R2_PUBLIC_BASE_URL').replace(/\/+$/, '');

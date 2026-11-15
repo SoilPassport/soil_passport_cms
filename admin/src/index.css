@@ -1,12 +1,36 @@
 @tailwind base; @tailwind components; @tailwind utilities;
-body{font-family:Inter,system-ui,sans-serif;color:#14110d}
+/* Same look as soilpassport.com: warm paper, black header/footer, rust and gold accents, Fraunces headings, IBM Plex Mono labels */
+:root{--paper:#F4F1E8;--paper-dim:#ECE6D5;--ink:#20190F;--rust:#A6572A;--rust-dark:#8A431E;--gold:#C79A3C;--black:#0A0A08;--on-black:#F4F1E8;--on-black-dim:#B9B2A0;--line-on-black:rgba(244,241,232,.16);--line:rgba(32,25,15,.16)}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+h1,h2{font-family:Fraunces,Georgia,serif;font-weight:560}
+.sp-header{position:sticky;top:0;z-index:40;background:var(--black);border-bottom:1px solid var(--line-on-black);color:var(--on-black)}
+.sp-brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,Georgia,serif;font-size:19px;color:var(--on-black);white-space:nowrap}
+.sp-brand img{width:28px;height:28px;border-radius:4px}
+.sp-tab{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--on-black-dim);padding:22px 12px 18px;border-bottom:3px solid transparent;white-space:nowrap}
+.sp-tab:hover{color:var(--on-black)}
+.sp-tab.active{color:var(--on-black);border-bottom-color:var(--gold)}
+.sp-gold{background:var(--gold);color:var(--black);font-weight:600;border-radius:2px;padding:7px 14px;font-size:13px}
+.sp-gold:hover{background:#dcb24e}
+.sp-side{background:var(--paper-dim);border-right:1px solid var(--line)}
+.sp-side-title{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--rust)}
+.sp-side a{display:block;border-radius:2px;padding:7px 10px;font-size:14px;color:var(--ink)}
+.sp-side a:hover{background:rgba(32,25,15,.07)}
+.sp-side a.active{background:var(--ink);color:var(--on-black)}
+.sp-side a.sub{margin-left:14px;font-size:13px;color:#4B4234;border-left:1px solid var(--line);border-radius:0 2px 2px 0}
+.sp-side a.sub.active{background:var(--rust);color:#fff}
+.sp-mobile a{display:block;border-radius:2px;padding:8px 10px;font-size:14px;color:var(--on-black-dim)}.sp-mobile a.sub{margin-left:14px;font-size:13px;border-left:1px solid var(--line-on-black);border-radius:0 2px 2px 0}.sp-mobile a.active{background:rgba(255,255,255,.12);color:#fff}.sp-mobile a.sub.active{background:var(--rust);color:#fff}
+.sp-footer{background:var(--black);color:var(--on-black-dim);padding:40px 0 22px;margin-top:48px}
+.sp-footer h4{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--on-black);margin:0 0 12px}
+.sp-footer a{display:block;font-size:14px;color:var(--on-black-dim);margin-bottom:8px}
+.sp-footer a:hover{color:var(--on-black)}
+.sp-footer .bottom{margin-top:28px;padding-top:18px;border-top:1px solid var(--line-on-black);font-size:12px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
 .btn{@apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500}
-.btn-primary{@apply bg-ink text-white hover:bg-black}
+.btn-primary{background:var(--rust);color:#fff;border-radius:2px}.btn-primary:hover{background:var(--rust-dark)}
 .btn-ghost{@apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50}
 .btn-danger{@apply bg-red-600 text-white hover:bg-red-700}
 .input{@apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500}
 .label{@apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500}
-.card{@apply rounded-xl border border-slate-200 bg-white shadow-sm}
+.card{@apply rounded-md border bg-white shadow-sm;border-color:var(--line)}
 .prose-body h2{font-size:1.25rem;font-weight:600;margin:1rem 0 .5rem}.prose-body h3{font-size:1.05rem;font-weight:600;margin:.9rem 0 .4rem}
 .prose-body p{margin:.5rem 0}.prose-body ul{list-style:disc;padding-left:1.4rem}.prose-body ol{list-style:decimal;padding-left:1.4rem}
 .prose-body blockquote{border-left:3px solid #cbd5e1;padding-left:.8rem;color:#475569}.prose-body a{color:#8d4822;text-decoration:underline}.prose-body img{max-width:100%;height:auto}

@@ -34,13 +34,15 @@ import Roadmap from './pages/Roadmap';
 import Crm from './pages/Crm';
 import Email from './pages/Email';
 import Seo from './pages/Seo';
+import Vouchers from './pages/Vouchers';
+import IntegrationSettings from './pages/IntegrationSettings';
 import Campaigns from './pages/Campaigns';
 import Reports from './pages/Reports';
 import System from './pages/System';
 import Storage from './pages/Storage';
 import DocumentEdit from './pages/DocumentEdit';
 
-const BUILT: Record<string, JSX.Element> = { seo: <Seo />, reports: <Reports />, system: <System />, storage: <Storage />, dashboard: <Dashboard />, users: <Users />, roles: <Roles />, audit: <Audit />, pages: <Pages />, articles: <Articles />, events: <Events />, settings: <Settings />, media: <Media />, gallery: <Gallery />, video: <Videos />, documents: <Documents />, roadmap: <Roadmap />, investment: <Enquiries kind="investment" />, partnerships: <Enquiries kind="partnership" />, contact: <Enquiries kind="contact" />, newsletter: <Newsletter />, crm: <Crm />, email: <Email /> };
+const BUILT: Record<string, JSX.Element> = { vouchers: <Vouchers />, config: <IntegrationSettings />, seo: <Seo />, reports: <Reports />, system: <System />, storage: <Storage />, dashboard: <Dashboard />, users: <Users />, roles: <Roles />, audit: <Audit />, pages: <Pages />, articles: <Articles />, events: <Events />, settings: <Settings />, media: <Media />, gallery: <Gallery />, video: <Videos />, documents: <Documents />, roadmap: <Roadmap />, investment: <Enquiries kind="investment" />, partnerships: <Enquiries kind="partnership" />, contact: <Enquiries kind="contact" />, newsletter: <Newsletter />, crm: <Crm />, email: <Email /> };
 
 function Guarded() {
   const a = useAuth();

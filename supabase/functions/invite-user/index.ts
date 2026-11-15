@@ -3,15 +3,18 @@
 // NOT YET TESTED against a live Supabase project — see docs/SETUP.md "Verification checklist".
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from '../_shared/cors.ts';
+import { env, loadConfig } from '../_shared/config.ts';
 
 const json = (b: unknown, s: number, h: Record<string, string>) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
 
 Deno.serve(async (req) => {
+  const url = Deno.env.get('SUPABASE_URL')!;
+  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  await loadConfig(admin);
   const cors = corsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, cors);
 
-  const url = Deno.env.get('SUPABASE_URL')!;
   const authHeader = req.headers.get('Authorization') ?? '';
   // 1) Act as the caller (RLS applies) to prove identity + permission.
   const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
@@ -26,12 +29,11 @@ Deno.serve(async (req) => {
   if (!/^[a-z][a-z0-9_]*$/.test(roleKey)) return json({ error: 'Invalid role' }, 400, cors);
 
   // 2) Privileged work with the service role.
-  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const { data: role } = await admin.from('roles').select('id').eq('key', roleKey).maybeSingle();
   if (!role) return json({ error: 'Unknown role' }, 400, cors);
 
   const { data: inv, error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: (body.full_name ?? '').slice(0, 200) }, redirectTo: Deno.env.get('ADMIN_URL'),
+    data: { full_name: (body.full_name ?? '').slice(0, 200) }, redirectTo: env('ADMIN_URL') || undefined,
   });
   if (invErr || !inv.user) return json({ error: 'Invite failed' }, 400, cors);
 

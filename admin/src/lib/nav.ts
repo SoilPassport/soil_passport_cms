@@ -12,6 +12,7 @@ export const NAV: NavGroup[] = [
       children: [{ label: 'All Articles', path: '/articles' }, { label: 'New Article', path: '/articles/new', perm: 'articles.edit' }, { label: 'Categories', path: '/articles/categories', perm: 'articles.edit' }] },
     { key: 'events', label: 'Events & Webinars', path: '/events', perm: 'events.view', phase: 4, built: true, blurb: '',
       children: [{ label: 'All Events', path: '/events' }, { label: 'New Event', path: '/events/new', perm: 'events.edit' }] },
+    { key: 'vouchers', label: 'Vouchers & Coupons', path: '/vouchers', perm: 'events.view', phase: 4, built: true, blurb: 'Codes for event registration.' },
     { key: 'roadmap', label: 'Roadmap Management', path: '/roadmap', perm: 'roadmap.view', phase: 4, built: true, blurb: 'Milestones with status and public/private visibility. Only approved items are published.' },
     { key: 'seo', label: 'SEO Management', path: '/seo', perm: 'seo.view', phase: 2, built: true, blurb: 'Sitemap and robots.txt generation. Per-page and per-article SEO fields are already in each editor.' } ] },
   { label: 'Media', items: [
@@ -34,6 +35,7 @@ export const NAV: NavGroup[] = [
     { key: 'roles', label: 'Roles & Permissions', path: '/roles', perm: 'users.view', phase: 1, built: true, blurb: '' },
     { key: 'settings', label: 'Website Settings', path: '/settings', perm: 'settings.view', phase: 2, built: true, blurb: '',
       children: [{ label: 'Announcement Banner', path: '/settings' }] },
+    { key: 'config', label: 'Integration Settings', path: '/config', perm: 'config.manage', phase: 6, built: true, blurb: 'Email, HubSpot, Eventbrite, storage and security settings (Super Admin only).' },
     { key: 'storage', label: 'Storage Settings', path: '/storage', perm: 'storage.manage', phase: 3, built: true, blurb: 'Cloudflare R2 connection status and upload limits.' },
     { key: 'audit', label: 'Security & Audit Logs', path: '/audit', perm: 'audit.view', phase: 1, built: true, blurb: '' },
     { key: 'reports', label: 'Reports & Analytics', path: '/reports', perm: 'reports.view', phase: 6, built: true, blurb: 'Content, enquiry and event reporting.' },

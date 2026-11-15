@@ -7,7 +7,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import { hmacHex, sha256Hex } from '../_shared/crypto.ts';
 
-const env = (k: string) => Deno.env.get(k) ?? '';
+import { env, loadConfig } from '../_shared/config.ts';
 const page = (status: number, title: string, msg: string) => new Response(`<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>${title}</title><body style="font:16px system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem"><h1 style="font-size:1.3rem">${title}</h1><p>${msg}</p>`, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
 const redirect = (to: string) => new Response(null, { status: 302, headers: { Location: to, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 
@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'GET') return page(405, 'Not allowed', 'This address only supports downloads.');
   const url = new URL(req.url); const slug = url.searchParams.get('slug'); const token = url.searchParams.get('t');
   const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
+  await loadConfig(admin);
   const ip = (req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
   const ipHash = env('IP_HASH_SALT') ? await hmacHex(env('IP_HASH_SALT'), 'ip:' + ip) : '';
   const nowIso = new Date().toISOString();

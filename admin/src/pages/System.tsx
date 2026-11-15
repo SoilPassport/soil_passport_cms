@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth';
 import { invokeFn, type IntegrationStatus } from '../lib/fn';
 import { PageHeader, Spinner, Badge } from '../components/ui';
 
-const LABELS: Record<string, string> = { r2: 'Cloudflare R2 media storage', turnstile: 'Cloudflare Turnstile (form spam protection)', hubspot: 'HubSpot CRM', email: 'Email (Resend)', cors: 'Allowed website origin (CORS)', r2_private: 'Private R2 bucket (restricted documents)', cron: 'Scheduled jobs secret (reminders, approval emails, newsletter sending, CRM retries)', hubspot_deals: 'HubSpot deals (optional)' };
+const LABELS: Record<string, string> = { r2: 'Cloudflare R2 media storage', turnstile: 'Cloudflare Turnstile (form spam protection)', hubspot: 'HubSpot CRM', email: 'Email (Resend)', cors: 'Allowed website origin (CORS)', r2_private: 'Private R2 bucket (restricted documents)', cron: 'Scheduled jobs secret (reminders, approval emails, newsletter sending, CRM retries)', hubspot_deals: 'HubSpot deals (optional)', eventbrite: 'Eventbrite (optional)' };
 function useStatus() { const [s, setS] = useState<IntegrationStatus | null>(null); const [err, setErr] = useState(''); const [loading, setLoading] = useState(true);
   useEffect(() => { invokeFn<IntegrationStatus>('integrations', { action: 'status' }).then(setS).catch(e => setErr((e as Error).message)).finally(() => setLoading(false)); }, []); return { s, err, loading }; }
 

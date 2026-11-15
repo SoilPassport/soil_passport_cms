@@ -1,60 +1,65 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { NAV } from '../lib/nav';
+import { NAV, type NavItem } from '../lib/nav';
 import { useAuth } from '../lib/auth';
+
+const SITE = 'https://soilpassport.com';
+const onPath = (pathname: string, p: string) => p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
+const itemActive = (pathname: string, i: NavItem) => onPath(pathname, i.path) || (i.children ?? []).some(c => onPath(pathname, c.path));
 
 export default function Layout() {
   const { can, profile, roles, signOut } = useAuth();
-  const [open, setOpen] = useState(false);
   const loc = useLocation();
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [subOpen, setSubOpen] = useState<Record<string, boolean>>({});
+  const [menu, setMenu] = useState(false);
+  useEffect(() => { setMenu(false); }, [loc.pathname]);
   const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => !i.perm || can(i.perm)) })).filter(g => g.items.length);
+  const found = groups.findIndex(g => g.items.some(i => itemActive(loc.pathname, i)));
+  const current = groups[found >= 0 ? found : 0];
+  const showSide = !!current && (current.items.length > 1 || (current.items[0].children ?? []).length > 0);
 
-  const sidebar = (
-    <nav aria-label="Main" className="flex h-full flex-col overflow-y-auto bg-ink px-3 py-4 text-sm text-slate-300">
-      <div className="mb-5 px-2"><div className="font-semibold text-white">Soil Passport™</div><div className="text-xs text-slate-400">Content administration</div></div>
-      {groups.map(g => (
-        <div key={g.label} className="mb-2">
-          <button className="flex w-full items-center justify-between px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300"
-            aria-expanded={!collapsed[g.label]} onClick={() => setCollapsed(c => ({ ...c, [g.label]: !c[g.label] }))}>
-            {g.label}<span aria-hidden>{collapsed[g.label] ? '▸' : '▾'}</span></button>
-          {!collapsed[g.label] && g.items.map(i => {
-            const kids = (i.children ?? []).filter(c => !c.perm || can(c.perm));
-            if (!kids.length) return (
-              <NavLink key={i.key} to={i.path} end={i.path === '/'} onClick={() => setOpen(false)}
-                className={({ isActive }) => `flex items-center justify-between rounded-md px-2 py-1.5 ${isActive ? 'bg-white/10 text-white' : 'hover:bg-white/5'}`}>
-                <span>{i.label}</span>{!i.built && <span className="text-[10px] text-slate-500">P{i.phase}</span>}
-              </NavLink>);
-            const inside = loc.pathname === i.path || loc.pathname.startsWith(i.path + '/');
-            const isOpen = subOpen[i.key] ?? inside;
-            return (
-              <div key={i.key}>
-                <button aria-expanded={isOpen} onClick={() => setSubOpen(o => ({ ...o, [i.key]: !isOpen }))}
-                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left ${inside ? 'text-white' : 'hover:bg-white/5'}`}>
-                  <span>{i.label}</span><span aria-hidden className="text-xs text-slate-500">{isOpen ? '▾' : '▸'}</span></button>
-                {isOpen && <div className="ml-3 border-l border-white/10 pl-2">{kids.map(c => (
-                  <NavLink key={c.path} to={c.path} end onClick={() => setOpen(false)}
-                    className={({ isActive }) => `block rounded-md px-2 py-1 text-[13px] ${isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>{c.label}</NavLink>))}</div>}
-              </div>);
-          })}
-        </div>))}
-    </nav>);
+  const links = (g: typeof groups[number], closeOnClick = false) => g.items.map(i => {
+    const kids = (i.children ?? []).filter(c => !c.perm || can(c.perm));
+    const mark = !i.built ? <span className="float-right text-[10px] opacity-60">soon</span> : null;
+    return <div key={i.key}>
+      <NavLink to={i.path} end={i.path === '/' || kids.length > 0} onClick={() => closeOnClick && setMenu(false)} className={({ isActive }) => (isActive || (kids.length > 0 && itemActive(loc.pathname, i) && !kids.some(c => onPath(loc.pathname, c.path))) ? 'active' : '')}>{i.label}{mark}</NavLink>
+      {kids.map(c => <NavLink key={c.path} to={c.path} end onClick={() => closeOnClick && setMenu(false)} className={({ isActive }) => 'sub ' + (isActive ? 'active' : '')}>{c.label}</NavLink>)}
+    </div>;
+  });
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[250px_1fr]">
-      <aside className="hidden lg:block lg:sticky lg:top-0 lg:h-screen">{sidebar}</aside>
-      {open && <div className="fixed inset-0 z-40 lg:hidden"><div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} /><div className="relative h-full w-[260px]">{sidebar}</div></div>}
-      <div className="min-w-0">
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-          <button className="btn btn-ghost lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>☰</button>
-          <div className="hidden text-sm text-slate-500 lg:block">{loc.pathname === '/' ? 'Dashboard' : loc.pathname.slice(1).replace(/-/g, ' ')}</div>
+    <div className="flex min-h-screen flex-col">
+      <header className="sp-header">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 lg:px-7">
+          <NavLink to="/" className="sp-brand py-3"><img src="/logo.png" alt="" />Soil Passport™ <span className="hidden text-xs opacity-70 sm:inline">Admin</span></NavLink>
+          <nav aria-label="Main" className="hidden items-stretch lg:flex">
+            {groups.map(g => <NavLink key={g.label} to={g.items[0].path} className={() => 'sp-tab ' + (g === current ? 'active' : '')} aria-current={g === current ? 'page' : undefined}>{g.label}</NavLink>)}
+          </nav>
           <div className="flex items-center gap-3 text-sm">
-            <div className="text-right"><div className="font-medium leading-tight">{profile?.full_name || profile?.email}</div><div className="text-xs text-slate-500">{roles.map(r => r.name).join(', ') || 'No role'}</div></div>
-            <button className="btn btn-ghost" onClick={() => void signOut()}>Sign out</button>
+            <div className="hidden text-right xl:block"><div className="font-medium leading-tight">{profile?.full_name || profile?.email}</div><div className="text-xs opacity-70">{roles.map(r => r.name).join(', ') || 'No role'}</div></div>
+            <button className="sp-gold" onClick={() => void signOut()}>Sign out</button>
+            <button className="rounded border border-white/20 px-2.5 py-1.5 lg:hidden" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(m => !m)}>{menu ? '✕' : '☰'}</button>
           </div>
-        </header>
-        <main className="mx-auto max-w-6xl p-4 lg:p-8"><Outlet /></main>
+        </div>
+        {menu && <nav aria-label="Mobile" className="max-h-[75vh] overflow-y-auto border-t border-white/10 px-4 pb-4 lg:hidden">
+          {groups.map(g => <div key={g.label} className="sp-mobile mt-3">
+            <div className="px-2 py-1 text-[11px] uppercase tracking-widest" style={{ color: 'var(--gold)', fontFamily: "'IBM Plex Mono',monospace" }}>{g.label}</div>
+            {links(g, true)}</div>)}
+        </nav>}
+      </header>
+
+      <div className={`mx-auto flex w-full max-w-[1400px] flex-1 ${showSide ? 'lg:grid lg:grid-cols-[250px_1fr]' : ''}`}>
+        {showSide && <aside className="sp-side hidden lg:block"><nav aria-label={current.label} className="sticky top-[62px] max-h-[calc(100vh-62px)] overflow-y-auto p-4">
+          <div className="sp-side-title mb-3">{current.label}</div>{links(current)}</nav></aside>}
+        <main className="min-w-0 flex-1 p-4 lg:p-8"><div className="mx-auto max-w-6xl"><Outlet /></div></main>
       </div>
+
+      <footer className="sp-footer" aria-label="Site footer">
+        <div className="mx-auto grid max-w-[1400px] gap-8 px-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr] lg:px-7">
+          <div><div className="sp-brand mb-2"><img src="/logo.png" alt="" />Soil Passport™</div><p className="max-w-[40ch] text-sm">Intelligence for soil. Technology for climate. Infrastructure for the future. Soil Passport Ltd — United Kingdom.</p></div>
+          <div><h4>Website</h4><a href={SITE} target="_blank" rel="noopener noreferrer">soilpassport.com</a><a href={SITE + '/news.html'} target="_blank" rel="noopener noreferrer">News</a><a href={SITE + '/events.html'} target="_blank" rel="noopener noreferrer">Events</a><a href={SITE + '/downloads.html'} target="_blank" rel="noopener noreferrer">Downloads</a></div>
+          <div><h4>Legal</h4><a href={SITE + '/privacy.html'} target="_blank" rel="noopener noreferrer">Privacy Policy</a><a href={SITE + '/terms.html'} target="_blank" rel="noopener noreferrer">Terms</a><a href={SITE + '/cookies.html'} target="_blank" rel="noopener noreferrer">Cookie Policy</a></div>
+        </div>
+        <div className="mx-auto max-w-[1400px] px-4 lg:px-7"><div className="bottom"><span>© {new Date().getFullYear()} Soil Passport Ltd. Staff-only administration area.</span><span>Access is logged.</span></div></div>
+      </footer>
     </div>);
 }

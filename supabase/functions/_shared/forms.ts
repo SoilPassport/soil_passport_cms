@@ -5,7 +5,7 @@ export const PARTNER_CATS = ['technology', 'research', 'academic', 'agronomy', '
 export const INVESTOR_TYPES = ['angel', 'venture_capital', 'family_office', 'institutional', 'strategic', 'corporate_partner', 'other'];
 export const CONTACT_CATS = ['general', 'product', 'book_demo', 'technical', 'media', 'partnership', 'investment', 'events', 'other'];
 
-export interface Clean { kind: Kind; name?: string; email: string; organisation?: string; telephone?: string; country?: string; job_title?: string; category?: string; message?: string; consent: true; source_page?: string; event_slug?: string; contact_category?: string; partnership_category?: string; website?: string; investor_type?: string; investment_interest?: string; interests?: string[] }
+export interface Clean { voucher_code?: string; kind: Kind; name?: string; email: string; organisation?: string; telephone?: string; country?: string; job_title?: string; category?: string; message?: string; consent: true; source_page?: string; event_slug?: string; contact_category?: string; partnership_category?: string; website?: string; investor_type?: string; investment_interest?: string; interests?: string[] }
 type R = { ok: true; value: Clean } | { ok: false; error: string };
 
 const CTRL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
@@ -45,6 +45,11 @@ export function validate(kind: string, b: Record<string, unknown>): R {
   if (k === 'event_registration') {
     const slug = str(b.event_slug, 160, 1); if (!slug || !/^[a-z0-9-]+$/.test(slug)) return bad('Event not found.');
     out.event_slug = slug;
+    if (b.voucher_code !== undefined && b.voucher_code !== null && String(b.voucher_code).trim() !== '') {
+      const code = String(b.voucher_code).trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return bad('That voucher code is not valid.');
+      out.voucher_code = code;
+    }
     if (Array.isArray(b.interests)) out.interests = b.interests.filter((x): x is string => typeof x === 'string' && x.length <= 60).slice(0, 10);
     return { ok: true, value: out };
   }

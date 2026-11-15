@@ -7,7 +7,7 @@ await db.exec(`create schema auth; create table auth.users(id uuid primary key, 
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 create or replace function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
 create role anon; create role authenticated; create role service_role;`);
-for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration','0005_media_library','0006_forms_email_crm','0007_reminders_approvals_downloads_newsletter_analytics']) {
+for (const f of ['0001_rbac_foundation','0002_content_modules','0003_seed_roles_permissions','0004_public_integration','0005_media_library','0006_forms_email_crm','0007_reminders_approvals_downloads_newsletter_analytics','0008_app_config','0009_vouchers']) {
   try { await db.exec(fs.readFileSync(''+new URL('../migrations/',import.meta.url).pathname+''+f+'.sql','utf8')); console.log('OK',f);} catch(e){console.log('FAIL',f,e.message); process.exit(1)}
 }
 console.log('anon can execute record_download (expect false):', (await db.query("select has_function_privilege('anon','public.record_download(uuid,text,uuid,text)','execute') a, has_function_privilege('authenticated','public.approver_emails(text)','execute') b, has_function_privilege('authenticated','public.analytics_purge()','execute') c")).rows[0]);
@@ -127,4 +127,45 @@ console.log('anon reads pageviews (expect 0 or ERR):', await hidden('select coun
 console.log('contributor analytics_summary (expect ERR):', JSON.stringify(await as(u(2),'aal1',"select analytics_summary(current_date-7,current_date) s")));
 const sm = await as(u(1),'aal2',"select analytics_summary(current_date-7,current_date) s");
 console.log('SA analytics (expect views 3, visitors 2, top /index.html):', sm[0]?.s?.views, sm[0]?.s?.visitors, sm[0]?.s?.pages?.[0]?.path);
+await db.exec('reset role');
+// ---- 0008: app_config + is_super_admin ----
+await svc("insert into app_config(key,value,is_secret,hint) values ('SMTP_HOST','smtp.test',false,null),('RESEND_API_KEY','v1.x.y',true,'••••abcd')");
+console.log('anon reads app_config (expect 0 or ERR):', await hidden('select count(*)::int c from app_config'));
+console.log('super admin reads app_config directly (expect 0 or ERR: only the function may):', JSON.stringify(await as(u(1),'aal2','select count(*)::int c from app_config')));
+console.log('super admin writes app_config directly (expect ERR):', JSON.stringify(await as(u(1),'aal2',"insert into app_config(key,value) values ('X_Y','1') returning key")));
+console.log('is_super_admin SA aal2 (expect true):', JSON.stringify(await as(u(1),'aal2','select is_super_admin() v')));
+console.log('is_super_admin SA aal1 with MFA required (expect false):', JSON.stringify(await as(u(1),'aal1','select is_super_admin() v')));
+console.log('is_super_admin contributor (expect false):', JSON.stringify(await as(u(2),'aal2','select is_super_admin() v')));
+console.log('is_super_admin investor relations (expect false):', JSON.stringify(await as(u(3),'aal2','select is_super_admin() v')));
+console.log('bad key name rejected (expect ERR):', await svc("insert into app_config(key,value) values ('lower','x')").then(()=>'NO ERROR (bad)').catch(e=>'ERR '+e.message.slice(0,40)));
+await db.exec('reset role');
+// ---- 0009: vouchers ----
+await svc("insert into events(id,slug,title,event_type,starts_at,ends_at,mode,registration_mode,status) values ('aaaaaaaa-0000-0000-0000-000000000001','ev-v','Voucher event','public_webinar',now()+interval '3 day',now()+interval '3 day 1 hour','online','native','published'),('aaaaaaaa-0000-0000-0000-000000000002','ev-w','Other event','public_webinar',now()+interval '4 day',now()+interval '4 day 1 hour','online','native','published')");
+await svc("insert into voucher_codes(id,code,benefit_type,benefit_value,max_redemptions) values ('bbbbbbbb-0000-0000-0000-000000000001','early20','percent_off',20,2),('bbbbbbbb-0000-0000-0000-000000000002','FREE1','free_place',null,null)");
+await svc("update voucher_codes set event_id='aaaaaaaa-0000-0000-0000-000000000001' where code='FREE1'");
+console.log('code stored uppercase (expect EARLY20):', (await svc("select code::text c from voucher_codes where id='bbbbbbbb-0000-0000-0000-000000000001'")).rows[0].c);
+const ck = async (c,e,m)=> (await svc(`select check_voucher('${c}','${e}','${m}') r`)).rows[0].r;
+const E1='aaaaaaaa-0000-0000-0000-000000000001', E2='aaaaaaaa-0000-0000-0000-000000000002';
+console.log('check valid (expect "20% off"):', await ck('early20',E1,'a@x.test'));
+console.log('check unknown (expect null):', await ck('nope',E1,'a@x.test'));
+console.log('check event-bound code on wrong event (expect null):', await ck('FREE1',E2,'a@x.test'), '| on right event:', await ck('free1',E1,'a@x.test'));
+await svc("insert into event_registrations(id,event_id,name,email,consent) values ('cccccccc-0000-0000-0000-000000000001','"+E1+"','A','a@x.test',true),('cccccccc-0000-0000-0000-000000000002','"+E1+"','B','b@x.test',true),('cccccccc-0000-0000-0000-000000000003','"+E2+"','C','c@x.test',true)");
+console.log('redeem (expect "20% off"):', (await svc("select redeem_voucher('early20','"+E1+"','a@x.test','cccccccc-0000-0000-0000-000000000001') r")).rows[0].r);
+console.log('registration stamped:', JSON.stringify((await svc("select voucher_code,benefit_text from event_registrations where id='cccccccc-0000-0000-0000-000000000001'")).rows[0]));
+console.log('same email cannot reuse (expect null):', await ck('early20',E2,'a@x.test'));
+await svc("select redeem_voucher('early20','"+E1+"','b@x.test','cccccccc-0000-0000-0000-000000000002')");
+console.log('limit of 2 reached (expect null, count 2):', await ck('early20',E1,'c@x.test'), (await svc("select redeemed_count c from voucher_codes where code='EARLY20'")).rows[0].c);
+console.log('redeem past limit (expect ERR):', await svc("select redeem_voucher('early20','"+E2+"','c@x.test','cccccccc-0000-0000-0000-000000000003')").then(()=>'NO ERROR (bad)').catch(e=>'ERR '+e.message));
+await svc("update event_registrations set status='cancelled' where id='cccccccc-0000-0000-0000-000000000002'");
+console.log('cancel frees a use (expect count 1, voucher_id null, code kept):', JSON.stringify((await svc("select (select redeemed_count from voucher_codes where code='EARLY20') c, voucher_id is null n, voucher_code from event_registrations where id='cccccccc-0000-0000-0000-000000000002'")).rows[0]));
+await svc("update voucher_codes set valid_until=now()-interval '1 day' where code='FREE1'"); console.log('expired code (expect null):', await ck('FREE1',E1,'z@x.test'));
+await svc("update voucher_codes set valid_until=null, active=false where code='FREE1'"); console.log('inactive code (expect null):', await ck('FREE1',E1,'z@x.test'));
+console.log('percent over 100 rejected (expect ERR):', await svc("insert into voucher_codes(code,benefit_type,benefit_value) values ('TOOMUCH','percent_off',150)").then(()=>'NO ERROR (bad)').catch(e=>'ERR'));
+console.log('bad code characters rejected (expect ERR):', await svc("insert into voucher_codes(code) values ('has space')").then(()=>'NO ERROR (bad)').catch(e=>'ERR'));
+console.log('anon reads vouchers (expect 0 or ERR):', await hidden('select count(*)::int c from voucher_codes'));
+console.log('contributor reads vouchers (events.view? expect 0 or n):', JSON.stringify(await as(u(2),'aal1','select count(*)::int c from voucher_codes')));
+console.log('SA creates voucher:', JSON.stringify(await as(u(1),'aal2',"insert into voucher_codes(code,redeemed_count) values ('SA-CODE',99) returning code, redeemed_count")));
+console.log('SA cannot change redeemed_count (expect 0):', JSON.stringify(await as(u(1),'aal2',"update voucher_codes set redeemed_count=50 where code='SA-CODE' returning redeemed_count")));
+console.log('SA cannot delete a used voucher (expect 0 rows):', JSON.stringify(await as(u(1),'aal2',"delete from voucher_codes where code='EARLY20' returning code")));
+console.log('anon event_availability has require_voucher:', await db.exec('set role anon').then(()=>db.query("select * from event_availability('ev-v')")).then(r=>JSON.stringify(r.rows[0])).catch(e=>'ERR '+e.message));
 await db.exec('reset role');

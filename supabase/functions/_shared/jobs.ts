@@ -7,7 +7,7 @@ import { hmacHex } from './crypto.ts';
 import { buildNewsletter } from './newsletter.ts';
 import { processCrmJob, sendTemplate } from './pipeline.ts';
 
-const env = (k: string) => Deno.env.get(k) ?? '';
+import { env } from './config.ts';
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const siteBase = () => (env('PUBLIC_SITE_ORIGINS') || 'https://soilpassport.com').split(',')[0].trim();
 const adminBase = () => (env('ADMIN_URL') || 'https://cms.soilpassport.com').replace(/\/+$/, '');

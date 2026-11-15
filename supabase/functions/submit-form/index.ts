@@ -6,7 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { validate } from '../_shared/forms.ts';
 import { notifyStaff, processCrmJob, sendTemplate } from '../_shared/pipeline.ts';
 
-const env = (k: string) => Deno.env.get(k) ?? '';
+import { env, loadConfig } from '../_shared/config.ts';
 const origins = () => (env('PUBLIC_SITE_ORIGINS') || 'https://soilpassport.com,https://www.soilpassport.com').split(',').map(s => s.trim());
 const cors = (o: string | null) => ({ 'Access-Control-Allow-Origin': o && origins().includes(o) ? o : origins()[0], 'Access-Control-Allow-Headers': 'content-type, apikey, authorization, x-client-info', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS', Vary: 'Origin' });
 const json = (b: unknown, s: number, h: Record<string, string>) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
@@ -19,10 +19,11 @@ const page = (t: string, body: string) => new Response(`<!doctype html><meta cha
 const later = (p: Promise<unknown>) => { const rt = (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime; if (rt?.waitUntil) rt.waitUntil(p.catch(() => { })); return rt?.waitUntil ? Promise.resolve() : p.catch(() => { }); };
 
 Deno.serve(async (req) => {
+  const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
+  await loadConfig(admin);
   const c = cors(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: c });
   const url = new URL(req.url);
-  const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
 
   // Newsletter confirm / unsubscribe links (signed, so they cannot be guessed)
   if (req.method === 'GET') {
@@ -67,16 +68,24 @@ Deno.serve(async (req) => {
   }
 
   if (f.kind === 'event_registration') {
-    const { data: ev } = await admin.from('events').select('id,title,starts_at,status,registration_mode,registration_closes_at,max_attendees,is_investor_event').eq('slug', f.event_slug!).maybeSingle();
+    const { data: ev } = await admin.from('events').select('id,title,starts_at,status,registration_mode,registration_closes_at,max_attendees,is_investor_event,require_voucher').eq('slug', f.event_slug!).maybeSingle();
     if (!ev || ev.status !== 'published' || ev.is_investor_event || ev.registration_mode !== 'native') return json({ error: 'Registration is not open for this event.' }, 400, c);
     if (ev.registration_closes_at && new Date(ev.registration_closes_at) < new Date()) return json({ error: 'Registration for this event has closed.' }, 400, c);
     if (ev.max_attendees) { const { count: n } = await admin.from('event_registrations').select('id', { count: 'exact', head: true }).eq('event_id', ev.id).neq('status', 'cancelled'); if ((n ?? 0) >= ev.max_attendees) return json({ error: 'Sorry, this event is full.' }, 400, c); }
+    if (f.voucher_code) { const { data: okv } = await admin.rpc('check_voucher', { p_code: f.voucher_code, p_event: ev.id, p_email: f.email }); if (!okv) return json({ error: 'That voucher code is not valid for this event.' }, 400, c); }
+    else if (ev.require_voucher) return json({ error: 'A voucher code is needed to register for this event.' }, 400, c);
     const { data: reg, error } = await admin.from('event_registrations').insert({ event_id: ev.id, name: f.name, email: f.email, organisation: f.organisation ?? null, job_title: f.job_title ?? null, country: f.country ?? null, interests: f.interests ?? [], consent: true, consent_text: 'Agreed to be contacted about this event', source: f.source_page ?? null }).select('id').single();
     if (error) { if (error.code === '23505') return ok('You are registered. Check your email for details.'); return json({ error: 'Could not save your registration. Please try again.' }, 500, c); }
+    let benefit = '';
+    if (f.voucher_code) {   // re-checked and counted atomically; if someone took the last use meanwhile, undo the registration
+      const { data: b, error: ve } = await admin.rpc('redeem_voucher', { p_code: f.voucher_code, p_event: ev.id, p_email: f.email, p_registration: reg.id });
+      if (ve || !b) { await admin.from('event_registrations').delete().eq('id', reg.id); return json({ error: 'That voucher code is no longer available.' }, 400, c); }
+      benefit = String(b);
+    }
     await admin.from('crm_sync_jobs').insert({ registration_id: reg.id, workflow: 'event_registration' });
-    const vars = { name: f.name, email: f.email, organisation: f.organisation ?? '', event_title: ev.title, event_date: new Date(ev.starts_at).toUTCString() };
+    const vars = { name: f.name, email: f.email, organisation: f.organisation ?? '', event_title: ev.title, event_date: new Date(ev.starts_at).toUTCString(), voucher_code: f.voucher_code ?? '', benefit };
     await later((async () => { await sendTemplate(admin, 'event_confirmation', [f.email], vars, { registration_id: reg.id }); await notifyStaff(admin, { ...vars, kind: 'event registration', message: `Registered for ${ev.title}` }, { registration_id: reg.id }, f.email); const { data: j } = await admin.from('crm_sync_jobs').select('id').eq('registration_id', reg.id).single(); if (j) await processCrmJob(admin, j.id); })());
-    return ok('You are registered. Check your email for details.');
+    return ok(benefit ? `You are registered. Voucher accepted: ${benefit}. Check your email for details.` : 'You are registered. Check your email for details.');
   }
 
   // contact / demo / partnership / investment

@@ -1,4 +1,6 @@
-// Email templating (pure) and sending through Resend. Values are HTML-escaped before insertion.
+// Email templating (pure) and sending through Resend or SMTP (chosen in the admin settings). Values are HTML-escaped before insertion.
+import { env } from './config.ts';
+import { sendSmtp } from './smtp.ts';
 export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 export function render(tpl: string, vars: Record<string, unknown>, html: boolean): string {
   return tpl.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_m, k) => {
@@ -10,12 +12,15 @@ export const stripTags = (h: string) => h.replace(/<br\s*\/?>/gi, '\n').replace(
 export const cleanSubject = (s: string) => s.replace(/[\r\n]+/g, ' ').slice(0, 200);
 
 export async function sendEmail(opts: { to: string[]; subject: string; html: string; text?: string; replyTo?: string; headers?: Record<string, string> }): Promise<{ ok: boolean; error?: string }> {
-  const key = Deno.env.get('RESEND_API_KEY'), from = Deno.env.get('EMAIL_FROM');
-  if (!key || !from) return { ok: false, error: 'Email is not configured (RESEND_API_KEY / EMAIL_FROM).' };
+  const subject = cleanSubject(opts.subject), text = opts.text ?? stripTags(opts.html);
+  const provider = env('EMAIL_PROVIDER') || (env('RESEND_API_KEY') ? 'resend' : env('SMTP_HOST') ? 'smtp' : 'resend');
+  if (provider === 'smtp') return sendSmtp({ to: opts.to, subject, html: opts.html, text, replyTo: opts.replyTo, headers: opts.headers });
+  const key = env('RESEND_API_KEY'), from = env('EMAIL_FROM');
+  if (!key || !from) return { ok: false, error: 'Email is not configured (Resend API key and From address).' };
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: opts.to, subject: cleanSubject(opts.subject), html: opts.html, text: opts.text ?? stripTags(opts.html), ...(opts.replyTo ? { reply_to: opts.replyTo } : {}), ...(opts.headers ? { headers: opts.headers } : {}) }),
+      body: JSON.stringify({ from, to: opts.to, subject, html: opts.html, text, ...(opts.replyTo ? { reply_to: opts.replyTo } : {}), ...(opts.headers ? { headers: opts.headers } : {}) }),
     });
     if (!r.ok) return { ok: false, error: `Email provider returned ${r.status}` };
     return { ok: true };

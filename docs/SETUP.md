@@ -228,3 +228,47 @@ HubSpot deals: add the scopes `crm.objects.deals.read` and `crm.objects.deals.wr
 - Newsletters: no open or click tracking, no segments, no scheduling for a future time, no automatic bounce handling (mark bounces manually in Subscribers). Throughput is about 480 emails per hour on the 5-minute schedule.
 - HubSpot deals are created once per enquiry, with a fixed pipeline and stage. They are not updated afterwards and carry no amount.
 - Analytics: page views only (no events, goals or funnels). Bots are filtered by browser name only, and anyone can send fake traffic. Country comes from the network header and may be blank. Data is kept 400 days. Privacy Policy wording was updated; have it reviewed for your own legal needs.
+
+
+---
+
+# Phase 8: Integration Settings (Super Admin), vouchers, new admin layout
+
+**Untested against live services.**
+
+### 1. Database
+Run `0008_app_config.sql` and then `0009_vouchers.sql` in the Supabase SQL Editor.
+
+### 2. One secret that must stay in Supabase
+Supabase → Edge Functions → Secrets → add `CONFIG_ENCRYPTION_KEY`: 32 or more random characters. It encrypts every secret saved from the admin panel (API keys, passwords, tokens). **Keep a copy in a password manager.** If it is lost or changed, saved secrets cannot be read and must be entered again. The Supabase URL and service key are also provided by Supabase and are not managed in the panel.
+
+### 3. Deploy and rebuild
+Actions → **Deploy Supabase functions** (now includes `config-admin`) → **Build admin app** → upload the new files into the `cms.soilpassport.com` folder → upload the new website zip (re-paste your keys into `assets/cms-config.js`).
+
+### 4. Using Integration Settings
+Administration → **Integration Settings** (Super Admins only, and only with the MFA rule satisfied). Groups: Email sending (Resend or your own SMTP server), HubSpot, Eventbrite, Media storage (R2), Forms/links/background jobs, Website and admin addresses.
+- A value saved here overrides the same setting in Supabase secrets. **Remove the saved value** falls back to the Supabase secret, if any. Changes apply within about 30 seconds.
+- Secrets are write-only: once saved you only see "Saved here" and the last 4 characters of long ones. To change one, type the new value.
+- Each group has test buttons (test email, HubSpot, Eventbrite, public and private R2 buckets). Save first, wait a few seconds, then test.
+- Every change is written to the audit log with the setting names only, never the values.
+- **SMTP:** choose provider "smtp", then server, port (465 with SSL, or 587 with STARTTLS), username, password and a From address. Cloud hosts often block some outbound SMTP ports and I could not confirm which ones Supabase allows; if the test fails with a connection error, try port 465, or use Resend.
+- **Eventbrite:** the token and organization ID are stored and can be tested. Importing events or attendees from Eventbrite is not built; events still link out to an Eventbrite page as an external registration.
+
+### 5. Voucher and coupon codes
+Content → **Vouchers & Coupons**. Create a code (or press Generate), choose the benefit (access code, free place, percent off, amount off), which event it works for (or any), a maximum number of uses, and dates. On an event with registration on this website you can tick **Registration needs a voucher code** for invite-only events. The registration form on the website then shows a voucher field.
+- Each email address can use a code once. Cancelling a registration gives the use back.
+- Codes are validated and counted on the server. The registrant sees the benefit (for example "20% off"); it is saved on their registration, added to the HubSpot note, and available in the confirmation email as `{{benefit}}` and `{{voucher_code}}`.
+- **No payment is taken.** Your team, or Eventbrite, must honour the discount. The system does not create discount codes inside Eventbrite.
+- The code is checked when the form is submitted, and the message is deliberately the same whether a code is wrong, expired or used up.
+
+### 6. New admin layout
+Top menu groups (Overview, Content, Media, Enquiries, Integrations, Administration) with each group's pages and sub pages in the left sidebar, and a header and footer styled like soilpassport.com. On phones the menu opens from the header button.
+
+### Verification checklist
+- [ ] Integration Settings loads for a Super Admin and shows "Forbidden" for any other role.
+- [ ] Save a non-secret setting (for example the From address); reload: the value shows with "Saved here".
+- [ ] Without `CONFIG_ENCRYPTION_KEY`, saving a secret is refused with a clear message. With it, a saved secret never appears again.
+- [ ] Email test sends to your address with Resend, then with SMTP.
+- [ ] HubSpot, Eventbrite and R2 tests report success with valid details and a clear message with wrong ones.
+- [ ] Create a code limited to 2 uses, register three different people on a native-registration event: the third is refused.
+- [ ] An event that requires a code refuses registration without one.

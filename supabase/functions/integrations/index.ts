@@ -9,11 +9,13 @@ import { cancelCampaign, processCampaigns, runAll, startCampaign, unsubUrl } fro
 import { buildNewsletter } from '../_shared/newsletter.ts';
 import { randomToken, sha256Hex } from '../_shared/crypto.ts';
 
-const env = (k: string) => Deno.env.get(k) ?? '';
+import { env, loadConfig } from '../_shared/config.ts';
 const json = (b: unknown, s: number, h: Record<string, string>) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
 const have = (keys: string[]) => ({ configured: keys.every(k => !!env(k)), missing: keys.filter(k => !env(k)) });
 
 Deno.serve(async (req) => {
+  const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
+  await loadConfig(admin);
   const h = corsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: h });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, h);
@@ -21,12 +23,11 @@ Deno.serve(async (req) => {
   const { data: me } = await asUser.auth.getUser(); if (!me.user) return json({ error: 'Not signed in' }, 401, h);
   const can = async (perm: string) => (await asUser.rpc('can', { perm })).data === true;
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400, h); }
-  const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
   const a = String(b.action ?? '');
 
   if (a === 'status') {
     if (!(await can('settings.view')) && !(await can('crm.view')) && !(await can('email.view'))) return json({ error: 'Forbidden' }, 403, h);
-    return json({ r2: have(['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_PUBLIC_BASE_URL']), turnstile: have(['TURNSTILE_SECRET_KEY', 'IP_HASH_SALT']), hubspot: have(['HUBSPOT_ACCESS_TOKEN']), email: have(['RESEND_API_KEY', 'EMAIL_FROM']), cors: have(['ALLOWED_ORIGIN']), r2_private: have(['R2_PRIVATE_BUCKET']), cron: have(['CRON_SECRET']), hubspot_deals: have(['HUBSPOT_DEAL_PIPELINE', 'HUBSPOT_DEAL_STAGE']) }, 200, h);
+    return json({ r2: have(['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_PUBLIC_BASE_URL']), turnstile: have(['TURNSTILE_SECRET_KEY', 'IP_HASH_SALT']), hubspot: have(['HUBSPOT_ACCESS_TOKEN']), email: (env('EMAIL_PROVIDER') || (env('RESEND_API_KEY') ? 'resend' : env('SMTP_HOST') ? 'smtp' : 'resend')) === 'smtp' ? have(['SMTP_HOST', 'EMAIL_FROM']) : have(['RESEND_API_KEY', 'EMAIL_FROM']), cors: have(['ALLOWED_ORIGIN']), r2_private: have(['R2_PRIVATE_BUCKET']), cron: have(['CRON_SECRET']), hubspot_deals: have(['HUBSPOT_DEAL_PIPELINE', 'HUBSPOT_DEAL_STAGE']), eventbrite: have(['EVENTBRITE_PRIVATE_TOKEN']) }, 200, h);
   }
   if (a === 'crm_process' || a === 'crm_retry') {
     if (!(await can('crm.manage'))) return json({ error: 'Forbidden' }, 403, h);

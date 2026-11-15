@@ -2,7 +2,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { render, sendEmail, stripTags } from './email.ts';
 import { MAX_ATTEMPTS, createDeal, dealKinds, dealProps, dealsEnabled, nextAttempt, pushContact } from './hubspot.ts';
-const envv = (k: string) => Deno.env.get(k) ?? '';
+import { env as envv } from './config.ts';
 
 export async function sendTemplate(admin: SupabaseClient, key: string, to: string[], vars: Record<string, unknown>, ref: { enquiry_id?: string; registration_id?: string } = {}, replyTo?: string): Promise<'sent' | 'failed' | 'skipped'> {
   const { data: t } = await admin.from('email_templates').select('subject,body_html,body_text,enabled').eq('key', key).maybeSingle();
@@ -23,7 +23,7 @@ export async function notifyStaff(admin: SupabaseClient, vars: Record<string, un
 }
 
 export async function processCrmJob(admin: SupabaseClient, jobId: string): Promise<'synced' | 'failed' | 'pending'> {
-  const token = Deno.env.get('HUBSPOT_ACCESS_TOKEN');
+  const token = envv('HUBSPOT_ACCESS_TOKEN');
   if (!token) return 'pending';
   const { data: job } = await admin.from('crm_sync_jobs').select('*').eq('id', jobId).maybeSingle();
   if (!job || job.status === 'synced') return 'synced';
@@ -37,7 +37,7 @@ export async function processCrmJob(admin: SupabaseClient, jobId: string): Promi
     } else {
       const { data: r } = await admin.from('event_registrations').select('*,events(title,starts_at)').eq('id', job.registration_id).single();
       person = { email: r.email, name: r.name, organisation: r.organisation, job_title: r.job_title, country: r.country };
-      note = `Registered for event: ${r.events?.title ?? ''} (${r.events?.starts_at ?? ''})`;
+      note = `Registered for event: ${r.events?.title ?? ''} (${r.events?.starts_at ?? ''})${r.voucher_code ? `\nVoucher: ${r.voucher_code} (${r.benefit_text ?? ''})` : ''}`;
     }
     // On a retry the contact and note may already exist; do not push them twice.
     let contactId: string | null = job.hubspot_contact_id ?? null;

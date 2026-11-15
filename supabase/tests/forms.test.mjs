@@ -44,3 +44,13 @@ assert.equal(stripTags('<p>Hello</p><p>You</p>'), 'Hello\nYou');
 assert.deepEqual(contactProps({ email: 'a@b.com', name: 'Ada King Lovelace', organisation: 'X', country: 'UK' }), { email: 'a@b.com', firstname: 'Ada', lastname: 'King Lovelace', company: 'X', country: 'UK' });
 assert.ok(new Date(nextAttempt(1, 0)).getTime() === 2 * 60_000 && new Date(nextAttempt(10, 0)).getTime() === 6 * 3600_000);
 console.log('forms/email/hubspot tests OK');
+// voucher codes in event registration
+{ const { validate } = await import('../functions/_shared/forms.ts');
+  const base = { kind: 'event_registration', name: 'Ann Lee', email: 'a@b.test', consent: true, event_slug: 'my-event' };
+  const r1 = validate('event_registration', { ...base, voucher_code: ' early-20 ' }); assert.equal(r1.ok, true, JSON.stringify(r1)); assert.equal(r1.value.voucher_code, 'EARLY-20');
+  assert.equal(validate('event_registration', { ...base, voucher_code: '' }).value.voucher_code, undefined);
+  assert.equal(validate('event_registration', { ...base }).value.voucher_code, undefined);
+  assert.equal(validate('event_registration', { ...base, voucher_code: 'ab' }).ok, false);
+  assert.equal(validate('event_registration', { ...base, voucher_code: "x'; drop table" }).ok, false);
+  assert.equal(validate('event_registration', { ...base, voucher_code: 'A'.repeat(33) }).ok, false);
+  console.log('voucher validation OK'); }
