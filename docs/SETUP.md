@@ -284,3 +284,6 @@ Sign-in, reset-password, two-step and access-pending screens show a copy of the 
 - **Cloudflare R2**: account ID, access key ID and secret, public and private bucket names, public files address, and an optional custom endpoint (EU/FedRAMP buckets). Save, wait about 30 seconds, then use the test buttons; uploads and downloads then use the new details without redeploying.
 - **Email**: sections for the sender (provider, From, optional Reply-to), Resend, and your own SMTP server (server, port, SSL/STARTTLS, username, password). Only outgoing mail is used.
 - Redeploy functions (Deploy Supabase functions) after pulling this version so `config-admin` returns the new fields.
+
+### 10. Migration 0010 (required): server permissions
+Run `0010_service_role_grants.sql` in the Supabase SQL Editor. Without it, uploads reach Cloudflare but fail with "Could not save the file record", and other server-side saves (form submissions, audit entries, CRM jobs) can fail with "permission denied". Then run **Deploy Supabase functions** (clearer error text).

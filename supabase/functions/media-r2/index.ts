@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       width: int(body.width), height: int(body.height), duration_seconds: int(body.duration),
       alt_text: typeof body.alt_text === 'string' ? body.alt_text.slice(0, 300) : null, uploaded_by: me.user.id,
     }).select('*').single();
-    if (error) { await r2.fetch(`${endpoint}/${body.key}`, { method: 'DELETE' }); return json({ error: error.code === '23505' ? 'This file has already been uploaded.' : 'Could not save the file record.' }, 400, cors); }
+    if (error) { console.error('media_assets insert failed', error.code, error.message); await r2.fetch(`${endpoint}/${body.key}`, { method: 'DELETE' }); return json({ error: error.code === '42501' ? 'The database refused to save the file record (permission). Run migration 0010 in the Supabase SQL Editor.' : error.code === '23505' ? 'This file has already been uploaded.' : 'Could not save the file record.' }, 400, cors); }
     await admin.from('audit_logs').insert({ actor_id: me.user.id, actor_email: me.user.email ?? null, action: 'media.uploaded', entity_type: 'media', entity_id: data.id, details: { filename: v.filename, size: realSize } });
     return json({ asset: data }, 200, cors);
   }
