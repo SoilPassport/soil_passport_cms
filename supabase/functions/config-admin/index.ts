@@ -91,6 +91,14 @@ Deno.serve(async (req) => {
         if (want && !orgs.some(o => o.id === want)) return no(`The token works, but organization ${want} is not one it can see. Available: ${orgs.map(o => `${o.name} (${o.id})`).join(', ') || 'none'}.`);
         return ok(`Eventbrite accepted the token. Organizations: ${orgs.map(o => `${o.name} (${o.id})`).join(', ') || 'none'}.`);
       }
+      if (t === 'r2_public') {
+        const base = env('R2_PUBLIC_BASE_URL'); if (!base) return no('The public files address is not set.');
+        const { data: a } = await admin.from('media_assets').select('filename,public_url').eq('visibility', 'public').eq('kind', 'image').order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (!a?.public_url) return no(`Upload an image to the Media Library first, then test again. The address in use is ${base}.`);
+        const r = await fetch(a.public_url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
+        if (r.ok) return ok(`Visitors can open "${a.filename}" at ${a.public_url} (type ${r.headers.get('content-type') ?? 'unknown'}).`);
+        return no(`"${a.filename}" could not be opened at ${a.public_url} (HTTP ${r.status}). ` + (r.status === 404 || r.status === 403 || r.status === 400 ? 'In Cloudflare, open the bucket → Settings and turn on "Public access" (the r2.dev address) or connect a custom domain, then copy that exact address into "Public files address".' : 'Check the address.'));
+      }
       if (t === 'r2' || t === 'r2_private') {
         const bucket = env(t === 'r2' ? 'R2_BUCKET' : 'R2_PRIVATE_BUCKET'); const miss = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'].filter(k => !env(k));
         if (miss.length || !bucket) return no(`Missing: ${[...miss, ...(bucket ? [] : [t === 'r2' ? 'R2_BUCKET' : 'R2_PRIVATE_BUCKET'])].join(', ')}.`);
