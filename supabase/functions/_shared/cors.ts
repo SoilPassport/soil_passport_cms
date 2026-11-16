@@ -1,7 +1,7 @@
 import { env } from './config.ts';
 // Restrict to your admin origin via ALLOWED_ORIGIN (e.g. https://cms.soilpassport.com).
 export const corsHeaders = (origin: string | null) => {
-  const allowed = env('ALLOWED_ORIGIN');
+  const allowed = env('ALLOWED_ORIGIN') || 'https://cms.soilpassport.com';   // default if not configured
   return {
     'Access-Control-Allow-Origin': origin && origin === allowed ? origin : allowed,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
