@@ -57,9 +57,10 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sp-header">
+      <div className="sp-webtop"><SiteHeader /></div>
+      <header className="sp-header sp-bar">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 lg:px-7">
-          <NavLink to="/" className="sp-brand py-3"><img src="/logo.png" alt="" />Soil Passport™ <span className="hidden text-xs opacity-70 sm:inline">Admin</span></NavLink>
+          <NavLink to="/" className="py-2 text-xs uppercase tracking-widest" style={{ color: 'var(--gold)', fontFamily: "'IBM Plex Mono',monospace" }}>CMS Admin</NavLink>
           <nav aria-label="Main" className="hidden items-stretch lg:flex">
             {groups.map(g => <NavLink key={g.label} to={g.items[0].path} className={() => 'sp-tab ' + (g === current ? 'active' : '')} aria-current={g === current ? 'page' : undefined}>{g.label}</NavLink>)}
           </nav>
@@ -79,7 +80,7 @@ export default function Layout() {
       </header>
 
       <div className={`mx-auto flex w-full max-w-[1400px] flex-1 ${showSide ? 'lg:grid lg:grid-cols-[250px_1fr]' : ''}`}>
-        {showSide && <aside className="sp-side hidden lg:block"><nav aria-label={current.label} className="sticky top-[62px] max-h-[calc(100vh-62px)] overflow-y-auto p-4">
+        {showSide && <aside className="sp-side hidden lg:block"><nav aria-label={current.label} className="sticky top-[46px] max-h-[calc(100vh-46px)] overflow-y-auto p-4">
           <div className="sp-side-title mb-3">{current.label}</div>{links(current)}</nav></aside>}
         <main className="min-w-0 flex-1 p-4 lg:p-8"><div className="mx-auto max-w-6xl"><Outlet /></div></main>
       </div>
