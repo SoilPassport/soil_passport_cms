@@ -8,6 +8,7 @@ interface Sb { url: string; project_ref: string | null; anon_key_set: boolean; s
 interface Resp { encryption: { configured: boolean }; supabase?: Sb; groups: Group[] }
 const TESTS: Record<string, { target: string; label: string }[]> = {
   email: [{ target: 'email', label: 'Send test email to me' }], crm: [{ target: 'hubspot', label: 'Test HubSpot connection' }], eventbrite: [{ target: 'eventbrite', label: 'Test Eventbrite connection' }],
+  sitekeys: [{ target: 'site_keys', label: 'Test website key' }],
   storage: [{ target: 'r2', label: 'Test public bucket' }, { target: 'r2_public', label: 'Test image address (public link)' }, { target: 'r2_private', label: 'Test private bucket' }],
 };
 const SRC: Record<string, { t: string; tone: 'green' | 'slate' | 'amber' }> = { database: { t: 'Saved here', tone: 'green' }, environment: { t: 'From Supabase secrets', tone: 'slate' }, unset: { t: 'Not set', tone: 'amber' } };

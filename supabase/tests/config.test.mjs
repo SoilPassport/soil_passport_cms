@@ -65,4 +65,9 @@ assert.equal(vv('R2_ENDPOINT', 'http://x.test').ok, false, 'endpoint must be htt
   envs.R2_ACCOUNT_ID = 'a'.repeat(32); delete envs.R2_ENDPOINT; assert.equal(r2Host(), `https://${'a'.repeat(32)}.r2.cloudflarestorage.com`);
   await loadConfig({ from: () => ({ select: async () => ({ data: [{ key: 'R2_ENDPOINT', value: 'https://z.eu.r2.cloudflarestorage.com', is_secret: false }], error: null }) }) }, true);
   assert.equal(r2Host(), 'https://z.eu.r2.cloudflarestorage.com', 'saved endpoint wins'); }
+assert.equal(validateValue('SITE_PUBLISHABLE_KEY', 'sb_publishable_abcdefghijklmnopqrstuv').ok, true);
+assert.equal(validateValue('SITE_PUBLISHABLE_KEY', 'sb_secret_abcdefghijklmnopqrstuv').ok, false, 'secret key refused');
+assert.equal(validateValue('SITE_PUBLISHABLE_KEY', 'hello').ok, false);
+assert.equal(validateValue('TURNSTILE_SITE_KEY', '0x4AAAAAAABkMYinukE8nzYS').ok, true);
+assert.equal(validateValue('TURNSTILE_SITE_KEY', 'not a key').ok, false);
 console.log('config tests OK');

@@ -287,3 +287,6 @@ Sign-in, reset-password, two-step and access-pending screens show a copy of the 
 
 ### 10. Migration 0010 (required): server permissions
 Run `0010_service_role_grants.sql` in the Supabase SQL Editor. Without it, uploads reach Cloudflare but fail with "Could not save the file record", and other server-side saves (form submissions, audit entries, CRM jobs) can fail with "permission denied". Then run **Deploy Supabase functions** (clearer error text).
+
+### 11. Website public keys from the admin (no file editing)
+Integration Settings → **Website connection (public keys)**: paste the Supabase **publishable key**, the Turnstile **site key**, and choose whether visitor counting is on. The website loads them from the `public-config` function (deployed by **Deploy Supabase functions**, no sign-in needed, public values only), so `assets/cms-config.js` now only holds the project address and never needs editing again. Press **Test website key** to confirm the key works and whether a published article is visible. Visitors' browsers keep the keys for up to an hour, so a change can take a little while to appear. If you paste a key into `cms-config.js` it still takes priority. Upload the new website zip once so the site uses this.

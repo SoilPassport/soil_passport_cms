@@ -6,6 +6,7 @@ export const GROUPS: { key: string; label: string; help: string }[] = [
   { key: 'crm', label: 'HubSpot', help: 'Contacts, notes and deals are pushed to HubSpot from a private app token.' },
   { key: 'eventbrite', label: 'Eventbrite', help: 'Connection details for Eventbrite. Events can already link to an Eventbrite page as an external registration. The details saved here are used by the connection test; importing events and attendees is not built yet.' },
   { key: 'storage', label: 'Cloudflare R2 (media buckets)', help: 'Where uploaded images, videos and documents are kept. Enter the Cloudflare account ID, an R2 API token key pair, and the bucket names. The private bucket holds restricted documents. After saving, the uploads and downloads use the new details within about 30 seconds.' },
+  { key: 'sitekeys', label: 'Website connection (public keys)', help: 'The public keys the website needs to show news, events and downloads and to protect its forms. They are public by design (safe to be seen in the page), so they are shown in full. The website loads them from here automatically: you do not need to edit any file on your web host. Changes can take up to an hour to reach visitors who already opened the site.' },
   { key: 'security', label: 'Forms, links and background jobs', help: 'Spam protection for website forms, signing of email links, and the secret that protects the scheduled-jobs endpoint.' },
   { key: 'website', label: 'Website and admin addresses', help: 'Which web addresses may call the system and where links in emails point.' },
 ];
@@ -32,6 +33,9 @@ export const DEFS: Def[] = [
   { key: 'R2_PUBLIC_BASE_URL', group: 'storage', label: 'Public files address', kind: 'url', placeholder: 'https://media.soilpassport.com' },
   { key: 'R2_ENDPOINT', group: 'storage', label: 'Custom R2 endpoint (optional)', kind: 'url', placeholder: 'https://<account>.eu.r2.cloudflarestorage.com', help: 'Leave empty normally. Only for buckets created with an EU or FedRAMP jurisdiction, where Cloudflare gives a different address.' },
   { key: 'R2_PRIVATE_BUCKET', group: 'storage', label: 'Private bucket name', kind: 'text', placeholder: 'soilpassport-private', help: 'For restricted documents. Must have public access turned off.' },
+  { key: 'SITE_PUBLISHABLE_KEY', group: 'sitekeys', label: 'Supabase publishable key', kind: 'text', placeholder: 'sb_publishable_…', help: 'Supabase → Project Settings → API Keys → Publishable key (or the legacy anon key). Never paste the secret or service key here.' },
+  { key: 'TURNSTILE_SITE_KEY', group: 'sitekeys', label: 'Turnstile site key', kind: 'text', placeholder: '0x4AAAAAA…', help: 'Cloudflare → Turnstile → your widget → Site key. The matching secret key goes under "Forms, links and background jobs".' },
+  { key: 'SITE_ANALYTICS', group: 'sitekeys', label: 'Visitor counting on the website', kind: 'select', options: ['on', 'off'], help: 'Cookie-free page-view counting. Off stops the website sending page views.' },
   { key: 'TURNSTILE_SECRET_KEY', group: 'security', label: 'Turnstile secret key', kind: 'text', secret: true, help: 'The matching public site key is set in the website file assets/cms-config.js.' },
   { key: 'IP_HASH_SALT', group: 'security', label: 'Signing secret', kind: 'text', secret: true, help: 'A long random string (16+ characters). Hashes visitor IPs and signs unsubscribe links. Changing it breaks unsubscribe links in emails already sent.' },
   { key: 'CRON_SECRET', group: 'security', label: 'Scheduled jobs secret', kind: 'text', secret: true, help: '24+ characters. Must match the CRON_SECRET in GitHub (or in your pg_cron job).' },
@@ -64,6 +68,8 @@ export function validateValue(key: string, raw: unknown): { ok: true; value: str
   // text with per-key rules
   if (key === 'R2_ACCOUNT_ID' && !/^[a-f0-9]{32}$/i.test(v)) return bad('should be 32 letters and numbers (a-f, 0-9).');
   if ((key === 'R2_BUCKET' || key === 'R2_PRIVATE_BUCKET') && !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(v)) return bad('use lowercase letters, numbers and hyphens (3 to 63 characters).');
+  if (key === 'SITE_PUBLISHABLE_KEY' && (/^sb_secret_/.test(v) || !/^(sb_publishable_[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,})$/.test(v))) return bad('paste the Publishable key (sb_publishable_…) or the legacy anon key. Do not use the secret/service key.');
+  if (key === 'TURNSTILE_SITE_KEY' && !/^[0-9]x[A-Za-z0-9_-]{10,}$/.test(v)) return bad('a Turnstile site key looks like 0x4AAAAAA… (copy the Site key, not the Secret key).');
   if (key === 'EVENTBRITE_ORGANIZATION_ID' && !/^\d{4,20}$/.test(v)) return bad('digits only.');
   if (key === 'SMTP_HOST' && !/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(v)) return bad('enter a server name such as smtp.example.com.');
   if (key === 'IP_HASH_SALT' && v.length < 16) return bad('use at least 16 characters.');

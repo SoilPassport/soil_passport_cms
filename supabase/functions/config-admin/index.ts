@@ -101,6 +101,13 @@ Deno.serve(async (req) => {
         if (want && !orgs.some(o => o.id === want)) return no(`The token works, but organization ${want} is not one it can see. Available: ${orgs.map(o => `${o.name} (${o.id})`).join(', ') || 'none'}.`);
         return ok(`Eventbrite accepted the token. Organizations: ${orgs.map(o => `${o.name} (${o.id})`).join(', ') || 'none'}.`);
       }
+      if (t === 'site_keys') {
+        const k = env('SITE_PUBLISHABLE_KEY'); if (!k) return no('The Supabase publishable key is not set.');
+        const r = await fetch(`${env('SUPABASE_URL')}/rest/v1/articles?select=id&status=eq.published&limit=1`, { headers: { apikey: k } });
+        if (!r.ok) return no(r.status === 401 || r.status === 403 ? 'Supabase rejected this key. Copy the Publishable key again (Project Settings → API Keys).' : `Supabase returned ${r.status}.`);
+        const n = ((await r.json()) as unknown[]).length;
+        return ok(`The key works. Visitors can read published content (${n ? 'at least one published article is visible' : 'no published article is visible yet: publish one in News & Articles'}).` + (env('TURNSTILE_SITE_KEY') ? '' : ' The Turnstile site key is not set, so website forms will show "being connected".'));
+      }
       if (t === 'r2_public') {
         const base = env('R2_PUBLIC_BASE_URL'); if (!base) return no('The public files address is not set.');
         const { data: a } = await admin.from('media_assets').select('filename,public_url').eq('visibility', 'public').eq('kind', 'image').order('created_at', { ascending: false }).limit(1).maybeSingle();

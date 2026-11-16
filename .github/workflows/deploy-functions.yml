@@ -43,3 +43,4 @@ jobs:
           supabase functions deploy doc-download --no-verify-jwt --yes --project-ref "$REF"
           supabase functions deploy track --no-verify-jwt --yes --project-ref "$REF"
           supabase functions deploy scheduled --no-verify-jwt --yes --project-ref "$REF"
+          supabase functions deploy public-config --no-verify-jwt --yes --project-ref "$REF"
