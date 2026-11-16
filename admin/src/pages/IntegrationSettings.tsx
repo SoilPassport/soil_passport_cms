@@ -34,6 +34,12 @@ export default function IntegrationSettings() {
     catch (e) { setRes(r => ({ ...r, [groupKey]: { ok: false, message: (e as Error).message } })); } setBusy('');
   }
 
+  async function relink() {
+    setBusy('relink');
+    try { const x = await invokeFn<{ updated: number; base: string }>('config-admin', { action: 'relink_media' }); setRes(r => ({ ...r, storage: { ok: true, message: `Updated ${x.updated} saved image link${x.updated === 1 ? '' : 's'} to use ${x.base}.` } })); }
+    catch (e) { setRes(r => ({ ...r, storage: { ok: false, message: (e as Error).message } })); } setBusy('');
+  }
+
   if (!data && !err) return <Spinner />;
   return <><PageHeader title="Integration Settings" sub="Super Admin only. Supabase, email, HubSpot, Eventbrite, Cloudflare R2 and security settings. Secrets are encrypted and can never be viewed again, only replaced." />
     {err && <div className="mb-4"><ErrorBox msg={err} /></div>}
@@ -63,6 +69,7 @@ export default function IntegrationSettings() {
       </div></Fragment>; })}</div>
       {g.key === 'email' && <p className="text-xs text-slate-500">Only outgoing mail is used. Incoming mail (IMAP or POP) is not needed: replies go to your normal mailbox.</p>}
       <div className="flex flex-wrap items-center gap-2"><button className="btn btn-primary" disabled={!!busy} onClick={() => void save(g)}>{busy === 'save-' + g.key ? 'Saving…' : 'Save ' + g.label}</button>
+        {g.key === 'storage' && <button className="btn" disabled={!!busy} onClick={() => void relink()} title="Rewrites the saved link of every public file to the Public files address above">{busy === 'relink' ? 'Updating…' : 'Fix saved image links'}</button>}
         {(TESTS[g.key] ?? []).map(t => <button key={t.target} className="btn" disabled={!!busy} onClick={() => void test(t.target, g.key)}>{busy === 'test-' + t.target ? 'Testing…' : t.label}</button>)}</div>
       {res[g.key] && <p role="status" className={`rounded-lg p-3 text-sm ${res[g.key].ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{res[g.key].message}</p>}
       {TESTS[g.key] && <p className="text-xs text-slate-500">Tests use the saved values. Save first, wait a few seconds, then test.</p>}

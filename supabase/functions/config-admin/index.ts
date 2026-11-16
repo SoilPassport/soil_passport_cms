@@ -61,6 +61,16 @@ Deno.serve(async (req) => {
     return json({ ok: true, changed: ready.length, cleared: clear.length }, 200, h);
   }
 
+  if (a === 'relink_media') {
+    const base = env('R2_PUBLIC_BASE_URL').replace(/\/+$/, ''); if (!base) return json({ error: 'Set the Public files address first.' }, 400, h);
+    const { data: rows, error } = await admin.from('media_assets').select('id,storage_key,public_url').eq('visibility', 'public').limit(5000);
+    if (error) return json({ error: 'Could not read the media list.' }, 500, h);
+    let n = 0;
+    for (const r of rows ?? []) { const want = `${base}/${r.storage_key}`; if (r.public_url !== want) { const { error: e2 } = await admin.from('media_assets').update({ public_url: want }).eq('id', r.id); if (e2) return json({ error: `Stopped after ${n} updates: ${e2.message.slice(0, 100)}` }, 500, h); n++; } }
+    await audit('media.links_rewritten', { updated: n });
+    return json({ ok: true, updated: n, base }, 200, h);
+  }
+
   if (a === 'test') {
     const t = String(b.target ?? ''); const ok = (message: string) => json({ ok: true, message }, 200, h); const no = (message: string) => json({ ok: false, message }, 200, h);
     try {
