@@ -57,4 +57,12 @@ fail = true; bustConfig(); await loadConfig(fake, true); assert.equal(env('RESEN
 delete envs.RESEND_API_KEY; delete envs.SMTP_HOST; bustConfig(); await loadConfig({ from: () => ({ select: async () => ({ data: [], error: null }) }) }, true);
 assert.match((await sendEmail({ to: ['a@b.test'], subject: 'S', html: '<p>x</p>' })).error, /not configured/);
 envs.EMAIL_PROVIDER = 'smtp'; assert.match((await sendEmail({ to: ['a@b.test'], subject: 'S', html: '<p>x</p>' })).error, /SMTP is not configured/);
+// Cloudflare R2 endpoint
+import { validateValue as vv } from '../functions/_shared/config-registry.ts';
+assert.equal(vv('R2_ENDPOINT', 'https://abc.eu.r2.cloudflarestorage.com/').value, 'https://abc.eu.r2.cloudflarestorage.com');
+assert.equal(vv('R2_ENDPOINT', 'http://x.test').ok, false, 'endpoint must be https');
+{ const { r2Host } = await import('../functions/_shared/config.ts'); bustConfig(); await loadConfig({ from: () => ({ select: async () => ({ data: [], error: null }) }) }, true);
+  envs.R2_ACCOUNT_ID = 'a'.repeat(32); delete envs.R2_ENDPOINT; assert.equal(r2Host(), `https://${'a'.repeat(32)}.r2.cloudflarestorage.com`);
+  await loadConfig({ from: () => ({ select: async () => ({ data: [{ key: 'R2_ENDPOINT', value: 'https://z.eu.r2.cloudflarestorage.com', is_secret: false }], error: null }) }) }, true);
+  assert.equal(r2Host(), 'https://z.eu.r2.cloudflarestorage.com', 'saved endpoint wins'); }
 console.log('config tests OK');

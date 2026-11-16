@@ -1,19 +1,20 @@
 // The list of settings a Super Admin can manage, and how each is validated. Pure (no Deno APIs).
 export type Kind = 'text' | 'url' | 'email' | 'number' | 'select' | 'origins';
-export interface Def { key: string; group: string; label: string; help?: string; secret?: boolean; kind: Kind; options?: string[]; placeholder?: string; min?: number }
+export interface Def { key: string; group: string; label: string; help?: string; secret?: boolean; kind: Kind; options?: string[]; placeholder?: string; min?: number; section?: string }
 export const GROUPS: { key: string; label: string; help: string }[] = [
   { key: 'email', label: 'Email sending', help: 'How the system sends email: enquiry replies, reminders, approval alerts, access links and newsletters. Choose Resend (API key) or your own SMTP server.' },
   { key: 'crm', label: 'HubSpot', help: 'Contacts, notes and deals are pushed to HubSpot from a private app token.' },
   { key: 'eventbrite', label: 'Eventbrite', help: 'Connection details for Eventbrite. Events can already link to an Eventbrite page as an external registration. The details saved here are used by the connection test; importing events and attendees is not built yet.' },
-  { key: 'storage', label: 'Media storage (Cloudflare R2)', help: 'Where uploaded images, videos and documents are kept. The private bucket holds restricted documents.' },
+  { key: 'storage', label: 'Cloudflare R2 (media buckets)', help: 'Where uploaded images, videos and documents are kept. Enter the Cloudflare account ID, an R2 API token key pair, and the bucket names. The private bucket holds restricted documents. After saving, the uploads and downloads use the new details within about 30 seconds.' },
   { key: 'security', label: 'Forms, links and background jobs', help: 'Spam protection for website forms, signing of email links, and the secret that protects the scheduled-jobs endpoint.' },
   { key: 'website', label: 'Website and admin addresses', help: 'Which web addresses may call the system and where links in emails point.' },
 ];
 export const DEFS: Def[] = [
-  { key: 'EMAIL_PROVIDER', group: 'email', label: 'Email provider', kind: 'select', options: ['resend', 'smtp'], help: 'Resend uses its web API. SMTP uses your own mail server.' },
+  { key: 'EMAIL_PROVIDER', group: 'email', section: 'Sender', label: 'Email provider', kind: 'select', options: ['resend', 'smtp'], help: 'Resend uses its web API. SMTP uses your own mail server.' },
   { key: 'EMAIL_FROM', group: 'email', label: 'From address', kind: 'email', placeholder: 'Soil Passport <hello@soilpassport.com>', help: 'Must be an address your provider is allowed to send from.' },
-  { key: 'RESEND_API_KEY', group: 'email', label: 'Resend API key', kind: 'text', secret: true, placeholder: 're_…' },
-  { key: 'SMTP_HOST', group: 'email', label: 'SMTP server', kind: 'text', placeholder: 'smtp.example.com' },
+  { key: 'EMAIL_REPLY_TO', group: 'email', label: 'Reply-to address (optional)', kind: 'email', placeholder: 'hello@soilpassport.com', help: 'Where replies go if different from the From address.' },
+  { key: 'RESEND_API_KEY', group: 'email', section: 'Resend (web API)', label: 'Resend API key', kind: 'text', secret: true, placeholder: 're_…' },
+  { key: 'SMTP_HOST', group: 'email', section: 'Your own email server (SMTP, outgoing mail)', label: 'SMTP server', kind: 'text', placeholder: 'smtp.example.com' },
   { key: 'SMTP_PORT', group: 'email', label: 'SMTP port', kind: 'number', placeholder: '465', help: 'Usually 465 (SSL) or 587 (STARTTLS). Cloud hosts often block some SMTP ports; if the test fails with a connection error, try 465 or use Resend.' },
   { key: 'SMTP_SECURE', group: 'email', label: 'SMTP security', kind: 'select', options: ['ssl', 'starttls'], help: 'SSL = connection is encrypted from the start (port 465). STARTTLS upgrades it (port 587).' },
   { key: 'SMTP_USER', group: 'email', label: 'SMTP username', kind: 'text' },
@@ -29,6 +30,7 @@ export const DEFS: Def[] = [
   { key: 'R2_SECRET_ACCESS_KEY', group: 'storage', label: 'R2 secret access key', kind: 'text', secret: true },
   { key: 'R2_BUCKET', group: 'storage', label: 'Public bucket name', kind: 'text', placeholder: 'soilpassport-media' },
   { key: 'R2_PUBLIC_BASE_URL', group: 'storage', label: 'Public files address', kind: 'url', placeholder: 'https://media.soilpassport.com' },
+  { key: 'R2_ENDPOINT', group: 'storage', label: 'Custom R2 endpoint (optional)', kind: 'url', placeholder: 'https://<account>.eu.r2.cloudflarestorage.com', help: 'Leave empty normally. Only for buckets created with an EU or FedRAMP jurisdiction, where Cloudflare gives a different address.' },
   { key: 'R2_PRIVATE_BUCKET', group: 'storage', label: 'Private bucket name', kind: 'text', placeholder: 'soilpassport-private', help: 'For restricted documents. Must have public access turned off.' },
   { key: 'TURNSTILE_SECRET_KEY', group: 'security', label: 'Turnstile secret key', kind: 'text', secret: true, help: 'The matching public site key is set in the website file assets/cms-config.js.' },
   { key: 'IP_HASH_SALT', group: 'security', label: 'Signing secret', kind: 'text', secret: true, help: 'A long random string (16+ characters). Hashes visitor IPs and signs unsubscribe links. Changing it breaks unsubscribe links in emails already sent.' },

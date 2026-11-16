@@ -68,7 +68,7 @@ export default function Layout() {
             <NavLink to="/account" title="My account and password" className="hidden text-right xl:block"><div className="font-medium leading-tight">{profile?.full_name || profile?.email}</div><div className="text-xs opacity-70">{roles.map(r => r.name).join(', ') || 'No role'}</div></NavLink>
             <NavLink to="/account" className="sp-tab hidden lg:inline-flex xl:hidden" style={{ padding: '0 .6rem' }}>Account</NavLink>
             <button className="sp-gold" onClick={() => void signOut()}>Sign out</button>
-            <button className="rounded border border-white/20 px-2.5 py-1.5 lg:hidden" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(m => !m)}>{menu ? '✕' : '☰'}</button>
+            <button className="rounded border border-white/20 px-2.5 py-1.5 lg:hidden" aria-label="Admin menu" aria-expanded={menu} onClick={() => setMenu(m => !m)}>{menu ? '✕' : '☰'}</button>
           </div>
         </div>
         {menu && <nav aria-label="Mobile" className="max-h-[75vh] overflow-y-auto border-t border-white/10 px-4 pb-4 lg:hidden">

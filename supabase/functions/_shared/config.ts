@@ -23,3 +23,6 @@ export async function loadConfig(admin: SupabaseClient, force = false): Promise<
   }
   cache = { at: Date.now(), map, src };
 }
+
+/** Address of the Cloudflare R2 S3 endpoint (custom endpoint if set, else the account default). */
+export const r2Host = (): string => (env('R2_ENDPOINT') || `https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`).replace(/\/+$/, '');

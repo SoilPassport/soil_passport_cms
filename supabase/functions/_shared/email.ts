@@ -14,13 +14,13 @@ export const cleanSubject = (s: string) => s.replace(/[\r\n]+/g, ' ').slice(0, 2
 export async function sendEmail(opts: { to: string[]; subject: string; html: string; text?: string; replyTo?: string; headers?: Record<string, string> }): Promise<{ ok: boolean; error?: string }> {
   const subject = cleanSubject(opts.subject), text = opts.text ?? stripTags(opts.html);
   const provider = env('EMAIL_PROVIDER') || (env('RESEND_API_KEY') ? 'resend' : env('SMTP_HOST') ? 'smtp' : 'resend');
-  if (provider === 'smtp') return sendSmtp({ to: opts.to, subject, html: opts.html, text, replyTo: opts.replyTo, headers: opts.headers });
+  if (provider === 'smtp') return sendSmtp({ to: opts.to, subject, html: opts.html, text, replyTo: opts.replyTo ?? (env('EMAIL_REPLY_TO') || undefined), headers: opts.headers });
   const key = env('RESEND_API_KEY'), from = env('EMAIL_FROM');
   if (!key || !from) return { ok: false, error: 'Email is not configured (Resend API key and From address).' };
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: opts.to, subject, html: opts.html, text, ...(opts.replyTo ? { reply_to: opts.replyTo } : {}), ...(opts.headers ? { headers: opts.headers } : {}) }),
+      body: JSON.stringify({ from, to: opts.to, subject, html: opts.html, text, ...((opts.replyTo ?? env('EMAIL_REPLY_TO')) ? { reply_to: opts.replyTo ?? env('EMAIL_REPLY_TO') } : {}), ...(opts.headers ? { headers: opts.headers } : {}) }),
     });
     if (!r.ok) return { ok: false, error: `Email provider returned ${r.status}` };
     return { ok: true };

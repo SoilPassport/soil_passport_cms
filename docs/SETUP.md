@@ -278,3 +278,9 @@ Click your name in the header (or **My account & password** in the mobile menu).
 
 ### 8. Website header and footer on the sign-in screens
 Sign-in, reset-password, two-step and access-pending screens show a copy of the soilpassport.com header and footer (links open the website). The footer is also used inside the admin. The copy is generated from the website files; if you change the website's menu or footer, regenerate it with `node admin/scripts-gen-site-chrome.cjs /path/to/site` (needs the `postcss` package) and rebuild the admin.
+
+### 9. Supabase and Cloudflare details on the Integration Settings page
+- **Supabase** (top of the page): shows the project address and reference and whether the public key, service key and encryption key are set, with a **Test Supabase connection** button. These are read-only: the system needs them to reach the saved settings, so they cannot live in them. To switch projects, change the Edge Function secrets, the GitHub secrets `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (then run Build admin app) and the website's `assets/cms-config.js`.
+- **Cloudflare R2**: account ID, access key ID and secret, public and private bucket names, public files address, and an optional custom endpoint (EU/FedRAMP buckets). Save, wait about 30 seconds, then use the test buttons; uploads and downloads then use the new details without redeploying.
+- **Email**: sections for the sender (provider, From, optional Reply-to), Resend, and your own SMTP server (server, port, SSL/STARTTLS, username, password). Only outgoing mail is used.
+- Redeploy functions (Deploy Supabase functions) after pulling this version so `config-admin` returns the new fields.

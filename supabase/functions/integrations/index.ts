@@ -9,7 +9,7 @@ import { cancelCampaign, processCampaigns, runAll, startCampaign, unsubUrl } fro
 import { buildNewsletter } from '../_shared/newsletter.ts';
 import { randomToken, sha256Hex } from '../_shared/crypto.ts';
 
-import { env, loadConfig } from '../_shared/config.ts';
+import { env, loadConfig, r2Host } from '../_shared/config.ts';
 const json = (b: unknown, s: number, h: Record<string, string>) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
 const have = (keys: string[]) => ({ configured: keys.every(k => !!env(k)), missing: keys.filter(k => !env(k)) });
 
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     if (need.length) return json({ error: 'Storage is not configured (missing: ' + need.join(', ') + ').' }, 503, h);
     const r2 = new AwsClient({ accessKeyId: env('R2_ACCESS_KEY_ID'), secretAccessKey: env('R2_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
     const cd = encodeURIComponent(`attachment; filename="${m.filename.replace(/[^A-Za-z0-9._\-]/g, '_')}"`);
-    const signed = await r2.sign(new Request(`https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/${m.storage_bucket}/${m.storage_key}?X-Amz-Expires=300&response-content-disposition=${cd}`, { method: 'GET' }), { aws: { signQuery: true } });
+    const signed = await r2.sign(new Request(`${r2Host()}/${m.storage_bucket}/${m.storage_key}?X-Amz-Expires=300&response-content-disposition=${cd}`, { method: 'GET' }), { aws: { signQuery: true } });
     await admin.from('audit_logs').insert({ actor_id: me.user.id, actor_email: me.user.email ?? null, action: 'document.opened', entity_type: 'document', entity_id: d.id, details: { title: d.title } });
     return json({ url: signed.url }, 200, h);
   }

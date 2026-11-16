@@ -7,7 +7,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import { hmacHex, sha256Hex } from '../_shared/crypto.ts';
 
-import { env, loadConfig } from '../_shared/config.ts';
+import { env, loadConfig, r2Host } from '../_shared/config.ts';
 const page = (status: number, title: string, msg: string) => new Response(`<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>${title}</title><body style="font:16px system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem"><h1 style="font-size:1.3rem">${title}</h1><p>${msg}</p>`, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
 const redirect = (to: string) => new Response(null, { status: 302, headers: { Location: to, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     if (!a || a.visibility !== 'private' || !env('R2_PRIVATE_BUCKET') || a.storage_bucket !== env('R2_PRIVATE_BUCKET')) return page(404, 'Not found', 'This document is not available.');
     const r2 = new AwsClient({ accessKeyId: env('R2_ACCESS_KEY_ID'), secretAccessKey: env('R2_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
     const cd = encodeURIComponent(`attachment; filename="${a.filename.replace(/[^A-Za-z0-9._\-]/g, '_')}"`);
-    const signed = await r2.sign(new Request(`https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/${a.storage_bucket}/${a.storage_key}?X-Amz-Expires=300&response-content-disposition=${cd}`, { method: 'GET' }), { aws: { signQuery: true } });
+    const signed = await r2.sign(new Request(`${r2Host()}/${a.storage_bucket}/${a.storage_key}?X-Amz-Expires=300&response-content-disposition=${cd}`, { method: 'GET' }), { aws: { signQuery: true } });
     await admin.rpc('record_download', { p_doc: d.id, p_ip_hash: ipHash, p_grant: g.id, p_email: g.email });
     return redirect(signed.url);
   }

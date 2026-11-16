@@ -8,7 +8,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { buildKey, isOwnKey, validateUpload } from '../_shared/media-rules.ts';
 
 const json = (b: unknown, s: number, h: Record<string, string>) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
-import { env, loadConfig } from '../_shared/config.ts';
+import { env, loadConfig, r2Host } from '../_shared/config.ts';
 
 Deno.serve(async (req) => {
   const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   const isPrivate = body.private === true;
   if (isPrivate && !env('R2_PRIVATE_BUCKET')) return json({ error: 'Private storage is not configured yet (missing: R2_PRIVATE_BUCKET).' }, 503, cors);
   const bucket = isPrivate ? env('R2_PRIVATE_BUCKET') : env('R2_BUCKET'), base = env('R2_PUBLIC_BASE_URL').replace(/\/+$/, '');
-  const host = `https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`;
+  const host = r2Host();
   let endpoint = `${host}/${bucket}`;
   const r2 = new AwsClient({ accessKeyId: env('R2_ACCESS_KEY_ID'), secretAccessKey: env('R2_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
 

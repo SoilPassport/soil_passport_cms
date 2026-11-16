@@ -5,7 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import { corsHeaders } from '../_shared/cors.ts';
-import { bustConfig, env, loadConfig, sourceOf } from '../_shared/config.ts';
+import { bustConfig, env, loadConfig, sourceOf, r2Host } from '../_shared/config.ts';
 import { DEFS, GROUPS, defOf, hintOf, validateValue } from '../_shared/config-registry.ts';
 import { encryptSecret } from '../_shared/secretbox.ts';
 import { render, sendEmail } from '../_shared/email.ts';
@@ -33,9 +33,10 @@ Deno.serve(async (req) => {
     const by = new Map((rows ?? []).map(r => [r.key, r]));
     return json({
       encryption: { configured: masterOk() },
+      supabase: { url: env('SUPABASE_URL'), project_ref: (/^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(env('SUPABASE_URL')) ?? [])[1] ?? null, anon_key_set: !!env('SUPABASE_ANON_KEY'), service_key_set: !!env('SUPABASE_SERVICE_ROLE_KEY'), encryption_key_set: masterOk() },
       groups: GROUPS.map(g => ({ ...g, fields: DEFS.filter(d => d.group === g.key).map(d => {
         const r = by.get(d.key); const src = r ? 'database' : sourceOf(d.key);
-        return { key: d.key, label: d.label, help: d.help ?? null, secret: !!d.secret, kind: d.kind, options: d.options ?? null, placeholder: d.placeholder ?? null, source: src,
+        return { key: d.key, label: d.label, help: d.help ?? null, secret: !!d.secret, kind: d.kind, options: d.options ?? null, section: d.section ?? null, placeholder: d.placeholder ?? null, source: src,
           value: d.secret ? null : (r ? r.value : null), isSet: !!r || src === 'environment', hint: d.secret && r ? r.hint : null, updated_at: r?.updated_at ?? null, unreadable: !!(r?.is_secret && sourceOf(d.key) !== 'database') };
       }) })),
     }, 200, h);
@@ -63,6 +64,14 @@ Deno.serve(async (req) => {
   if (a === 'test') {
     const t = String(b.target ?? ''); const ok = (message: string) => json({ ok: true, message }, 200, h); const no = (message: string) => json({ ok: false, message }, 200, h);
     try {
+      if (t === 'supabase') {
+        const url = env('SUPABASE_URL'); if (!url || !env('SUPABASE_SERVICE_ROLE_KEY')) return no('The Supabase URL or service key is missing from the Edge Function environment.');
+        const { error: dbErr } = await admin.from('app_config').select('key', { head: true, count: 'exact' }).limit(1);
+        if (dbErr) return no('The database could not be read with the service key: ' + dbErr.message.slice(0, 120));
+        const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: env('SUPABASE_ANON_KEY') } });
+        if (!r.ok) return no(`The database works, but the auth service rejected the public (anon) key (${r.status}).`);
+        return ok(`Supabase is reachable (${url}). The service key and public key both work${masterOk() ? '' : '. CONFIG_ENCRYPTION_KEY is not set yet'}.`);
+      }
       if (t === 'email') {
         const r = await sendEmail({ to: [me.user.email!], subject: '[TEST] Soil Passport email settings', html: render('<p>This test email confirms your email settings work. Provider: {{p}}.</p>', { p: env('EMAIL_PROVIDER') || 'resend' }, true) });
         return r.ok ? ok(`Test email sent to ${me.user.email}. Check the inbox (and spam).`) : no(r.error ?? 'Sending failed.');
@@ -86,7 +95,7 @@ Deno.serve(async (req) => {
         const bucket = env(t === 'r2' ? 'R2_BUCKET' : 'R2_PRIVATE_BUCKET'); const miss = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'].filter(k => !env(k));
         if (miss.length || !bucket) return no(`Missing: ${[...miss, ...(bucket ? [] : [t === 'r2' ? 'R2_BUCKET' : 'R2_PRIVATE_BUCKET'])].join(', ')}.`);
         const r2 = new AwsClient({ accessKeyId: env('R2_ACCESS_KEY_ID'), secretAccessKey: env('R2_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
-        const r = await r2.fetch(`https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/${bucket}?list-type=2&max-keys=1`);
+        const r = await r2.fetch(`${r2Host()}/${bucket}?list-type=2&max-keys=1`);
         if (r.ok) return ok(`Connected to bucket "${bucket}".`);
         return no(r.status === 403 ? 'Cloudflare rejected the keys, or they do not cover this bucket (403).' : r.status === 404 ? `Bucket "${bucket}" was not found (404). Check the name and account ID.` : `Cloudflare returned ${r.status}.`);
       }
